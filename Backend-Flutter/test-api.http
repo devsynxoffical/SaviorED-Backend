@@ -1,0 +1,149 @@
+### SaviorED API Test Collection
+### Use with REST Client extension in VS Code or similar tool
+
+@baseUrl = http://localhost:5000
+@token = YOUR_TOKEN_HERE
+
+### Health Check
+GET {{baseUrl}}/health
+
+### Register User
+POST {{baseUrl}}/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "password123",
+  "name": "Test User"
+}
+
+### Login
+POST {{baseUrl}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "password123"
+}
+
+### Get Current User
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer {{token}}
+
+### Get User Profile
+GET {{baseUrl}}/api/users/profile
+Authorization: Bearer {{token}}
+
+### Update User Profile
+PUT {{baseUrl}}/api/users/profile
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Updated Name",
+  "avatar": "https://example.com/avatar.jpg"
+}
+
+### Create Focus Session
+POST {{baseUrl}}/api/focus-sessions
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "durationMinutes": 25
+}
+
+### Get Focus Sessions
+GET {{baseUrl}}/api/focus-sessions
+Authorization: Bearer {{token}}
+
+### Update Focus Session
+PUT {{baseUrl}}/api/focus-sessions/SESSION_ID/update
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "totalSeconds": 1500,
+  "isPaused": false,
+  "isRunning": true
+}
+
+### Complete Focus Session
+PUT {{baseUrl}}/api/focus-sessions/SESSION_ID/complete
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "totalSeconds": 1500
+}
+
+### Get My Castle
+GET {{baseUrl}}/api/castles/my-castle
+Authorization: Bearer {{token}}
+
+### Level Up Castle
+PUT {{baseUrl}}/api/castles/level-up
+Authorization: Bearer {{token}}
+
+### Get Global Leaderboard
+GET {{baseUrl}}/api/leaderboard/global
+Authorization: Bearer {{token}}
+
+### Get School Leaderboard
+GET {{baseUrl}}/api/leaderboard/school
+Authorization: Bearer {{token}}
+
+### Get My Treasure Chest
+GET {{baseUrl}}/api/treasure-chests/my-chest
+Authorization: Bearer {{token}}
+
+### Update Treasure Chest Progress
+PUT {{baseUrl}}/api/treasure-chests/update-progress
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "progressPercentage": 50
+}
+
+### Claim Treasure Chest
+PUT {{baseUrl}}/api/treasure-chests/claim
+Authorization: Bearer {{token}}
+
+### Forgot Password
+POST {{baseUrl}}/api/auth/forgot-password
+Content-Type: application/json
+
+{
+  "email": "test@example.com"
+}
+
+### Admin Login
+POST {{baseUrl}}/admin/login
+Content-Type: application/json
+
+{
+  "email": "admin@saviored.com",
+  "password": "admin123"
+}
+
+### Admin Dashboard Stats
+GET {{baseUrl}}/admin/dashboard/stats
+Authorization: Bearer {{token}}
+
+### Admin Get All Users
+GET {{baseUrl}}/admin/users
+Authorization: Bearer {{token}}
+
+### Admin Get All Focus Sessions
+GET {{baseUrl}}/admin/focus-sessions
+Authorization: Bearer {{token}}
+
+### Admin Get All Castles
+GET {{baseUrl}}/admin/castle-grounds
+Authorization: Bearer {{token}}
+
+### Admin Get All Treasure Chests
+GET {{baseUrl}}/admin/treasure-chests
+Authorization: Bearer {{token}}
+

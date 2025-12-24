@@ -1,0 +1,56 @@
+.treasure-chests-page {
+  max-width: 1400px;
+}
+
+.chest-status {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.status-badge.unlocked {
+  background: #d1fae5;
+  color: #065f46;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  display: inline-block;
+  width: fit-content;
+}
+
+.status-badge.locked {
+  background: #fee2e2;
+  color: #991b1b;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  display: inline-block;
+  width: fit-content;
+}
+
+.status-badge.claimed {
+  background: #dbeafe;
+  color: #1e40af;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  display: inline-block;
+  width: fit-content;
+}
+
+.rewards-list {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.reward-badge {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 500;
+}
+

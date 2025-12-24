@@ -1,0 +1,79 @@
+.leaderboard-page {
+  max-width: 1400px;
+}
+
+.type-select {
+  padding: 10px 16px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  background: white;
+  cursor: pointer;
+}
+
+.refresh-btn {
+  padding: 10px 20px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.refresh-btn:hover {
+  background: #2563eb;
+}
+
+.leaderboard-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.leaderboard-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid #e5e7eb;
+}
+
+.rank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.rank-badge.rank-1 {
+  background: #ffd700;
+  color: #1f2937;
+}
+
+.rank-badge.rank-2 {
+  background: #c0c0c0;
+  color: #1f2937;
+}
+
+.rank-badge.rank-3 {
+  background: #cd7f32;
+  color: white;
+}
+
+.rank-badge.rank-other {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.progress-cell {
+  font-size: 14px;
+  color: #374151;
+}
+

@@ -1,0 +1,58 @@
+name: savior_ed
+description: "A new Flutter project."
+publish_to: 'none'
+version: 0.1.0
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # State Management
+  provider: ^6.1.2
+  
+  # UI & Responsive
+  responsive_sizer: ^3.1.0
+  toastification: ^3.0.3
+  
+  # Networking
+  http: ^1.2.2
+  dio: ^5.4.1
+  
+  # Local Storage
+  shared_preferences: ^2.2.3
+  
+  # Utilities
+  equatable: ^2.0.5
+  intl: ^0.19.0
+  
+  # Video Player
+  video_player: ^2.8.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  
+  assets:
+    - assets/images/castle.png
+    - assets/images/treasure.jpg
+    - assets/images/leadboard_castle.png
+    - assets/images/google_logo.png
+    - assets/images/house.png
+    - assets/images/final_house.jpg
+    - assets/images/castle_build.mp4
+    - assets/images/building1.mp4
+    - assets/images/final_working.mp4
+    - assets/images/focus_container.png
+    - assets/images/exit_battle.png
+    - assets/images/start_focus.png
+    - assets/images/get_started.png
+    - assets/images/onboarding.png
+    - assets/images/pause.png
+    - assets/images/end.png

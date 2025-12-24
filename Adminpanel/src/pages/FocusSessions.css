@@ -1,0 +1,35 @@
+.focus-sessions-page {
+  max-width: 1400px;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-badge.completed {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-badge.incomplete {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.rewards-cell {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.rewards-cell span {
+  font-size: 12px;
+  padding: 2px 6px;
+  background: #f3f4f6;
+  border-radius: 4px;
+}
+
