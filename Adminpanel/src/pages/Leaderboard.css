@@ -33,14 +33,6 @@
   gap: 12px;
 }
 
-.leaderboard-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 1px solid #e5e7eb;
-}
-
 .rank-badge {
   display: inline-flex;
   align-items: center;

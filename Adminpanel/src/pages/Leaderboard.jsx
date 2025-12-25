@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { leaderboardAPI } from '../services/api';
 import DataTable from '../components/DataTable';
-import ImageWithFallback from '../components/ImageWithFallback';
 import './Leaderboard.css';
 
 const Leaderboard = () => {
@@ -64,14 +63,7 @@ const Leaderboard = () => {
       label: 'User',
       render: (value, row) => (
         <div className="leaderboard-user">
-          {row.avatar && (
-            <ImageWithFallback
-              src={row.avatar}
-              alt={value || 'User'}
-              className="leaderboard-avatar"
-            />
-          )}
-          <span className={`rank-badge rank-${row.rank <= 3 ? row.rank : 'other'}`}>
+          <span className="rank-badge rank-${row.rank <= 3 ? row.rank : 'other'}">
             #{row.rank}
           </span>
           <span>{value}</span>

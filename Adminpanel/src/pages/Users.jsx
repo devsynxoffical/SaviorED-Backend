@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { usersAPI } from '../services/api';
 import DataTable from '../components/DataTable';
-import ImageWithFallback from '../components/ImageWithFallback';
 import './Users.css';
 
 const Users = () => {
@@ -65,16 +64,8 @@ const Users = () => {
       label: 'Name',
       render: (value, row) => (
         <div className="user-cell">
-          {row.avatar ? (
-            <ImageWithFallback
-              src={row.avatar}
-              alt={value || 'User'}
-              className="user-avatar"
-            />
-          ) : (
-            <div className="user-avatar-placeholder">
-              {value ? value.charAt(0).toUpperCase() : 'U'}
-            </div>
+          {row.avatar && (
+            <img src={row.avatar} alt={value} className="user-avatar" />
           )}
           <span>{value || 'N/A'}</span>
         </div>
