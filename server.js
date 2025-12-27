@@ -21,6 +21,8 @@ connectDB().catch((error) => {
 });
 
 const app = express();
+// Railway automatically sets PORT environment variable
+// Use Railway's PORT or default to 5000 for local development
 const PORT = process.env.PORT || 5000;
 
 // Middleware
@@ -91,11 +93,12 @@ app.use((req, res) => {
 // Railway needs the server to bind to 0.0.0.0 to be accessible from outside
 const HOST = process.env.HOST || '0.0.0.0';
 
-app.listen(PORT, HOST, () => {
+// Start server - Railway will route traffic to this port
+const server = app.listen(PORT, HOST, () => {
   console.log(`🚀 Server running on ${HOST}:${PORT}`);
   console.log(`📱 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🌐 API Base URL: http://${HOST}:${PORT}`);
-  console.log(`📚 Health Check: http://${HOST}:${PORT}/health`);
+  console.log(`🌐 Railway will route to: https://saviored-backend-production.up.railway.app`);
+  console.log(`📚 Health Check: https://saviored-backend-production.up.railway.app/health`);
   console.log(`\n📋 Available Endpoints:`);
   console.log(`   - POST /api/auth/register - Register new user`);
   console.log(`   - POST /api/auth/login - Login user`);
@@ -106,6 +109,24 @@ app.listen(PORT, HOST, () => {
   console.log(`   - GET /api/leaderboard/global - Get global leaderboard`);
   console.log(`   - GET /api/treasure-chests/my-chest - Get treasure chest`);
   console.log(`   - POST /admin/login - Admin login`);
+});
+
+// Handle server errors
+server.on('error', (error) => {
+  if (error.code === 'EADDRINUSE') {
+    console.error(`❌ Port ${PORT} is already in use`);
+  } else {
+    console.error(`❌ Server error: ${error.message}`);
+  }
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down gracefully');
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
 });
 
 export default app;
