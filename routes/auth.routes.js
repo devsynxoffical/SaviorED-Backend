@@ -3,6 +3,7 @@ import { body, validationResult } from 'express-validator';
 import User from '../models/User.model.js';
 import generateToken from '../utils/generateToken.js';
 import { protect } from '../middleware/auth.middleware.js';
+import { requireDB } from '../config/database.js';
 import passport from 'passport';
 import '../config/passport.js';
 
@@ -13,6 +14,7 @@ const router = express.Router();
 // @access  Public
 router.post(
   '/register',
+  requireDB, // Ensure database is connected before processing
   [
     body('email').isEmail().normalizeEmail(),
     body('password').isLength({ min: 6 }),
@@ -91,6 +93,7 @@ router.post(
 // @access  Public
 router.post(
   '/login',
+  requireDB, // Ensure database is connected before processing
   [
     body('email').isEmail().normalizeEmail(),
     body('password').notEmpty(),
@@ -339,6 +342,7 @@ router.post('/logout', protect, (req, res) => {
 // @access  Public
 router.post(
   '/google/mobile',
+  requireDB, // Ensure database is connected before processing
   [
     body('idToken').notEmpty().withMessage('Google ID token is required'),
     body('email').optional().isEmail(),
