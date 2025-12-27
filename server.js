@@ -34,6 +34,17 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(passport.initialize());
 
+// Root route for Railway health checks
+app.get('/', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    message: 'SaviorED API is running',
+    service: 'SaviorED Backend',
+    version: '1.0.0',
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // Health check
 app.get('/health', (req, res) => {
   const dbStatus = isDBConnected();
@@ -95,20 +106,34 @@ const HOST = process.env.HOST || '0.0.0.0';
 
 // Start server - Railway will route traffic to this port
 const server = app.listen(PORT, HOST, () => {
-  console.log(`🚀 Server running on ${HOST}:${PORT}`);
-  console.log(`📱 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🌐 Railway will route to: https://saviored-backend-production.up.railway.app`);
-  console.log(`📚 Health Check: https://saviored-backend-production.up.railway.app/health`);
-  console.log(`\n📋 Available Endpoints:`);
+  console.log(`\n${'='.repeat(60)}`);
+  console.log(`🚀 SERVER STARTED SUCCESSFULLY`);
+  console.log(`${'='.repeat(60)}`);
+  console.log(`📍 Host: ${HOST}`);
+  console.log(`🔌 Port: ${PORT}`);
+  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`\n📡 Network Configuration:`);
+  console.log(`   - Listening on: ${HOST}:${PORT}`);
+  console.log(`   - Railway URL: https://saviored-backend-production.up.railway.app`);
+  console.log(`   - Health Check: https://saviored-backend-production.up.railway.app/health`);
+  console.log(`   - Root Endpoint: https://saviored-backend-production.up.railway.app/`);
+  console.log(`\n📋 Available API Endpoints:`);
+  console.log(`   - GET  / - Root endpoint`);
+  console.log(`   - GET  /health - Health check`);
   console.log(`   - POST /api/auth/register - Register new user`);
   console.log(`   - POST /api/auth/login - Login user`);
-  console.log(`   - GET /api/auth/me - Get current user`);
-  console.log(`   - GET /api/users/profile - Get user profile`);
+  console.log(`   - GET  /api/auth/me - Get current user`);
+  console.log(`   - GET  /api/users/profile - Get user profile`);
   console.log(`   - POST /api/focus-sessions - Create focus session`);
-  console.log(`   - GET /api/castles/my-castle - Get user's castle`);
-  console.log(`   - GET /api/leaderboard/global - Get global leaderboard`);
-  console.log(`   - GET /api/treasure-chests/my-chest - Get treasure chest`);
+  console.log(`   - GET  /api/castles/my-castle - Get user's castle`);
+  console.log(`   - GET  /api/leaderboard/global - Get global leaderboard`);
+  console.log(`   - GET  /api/treasure-chests/my-chest - Get treasure chest`);
   console.log(`   - POST /admin/login - Admin login`);
+  console.log(`\n💡 Railway Configuration:`);
+  console.log(`   - Service must be set to "Public" in Railway dashboard`);
+  console.log(`   - Check Settings → Networking → Public Networking`);
+  console.log(`   - Verify service has a public domain assigned`);
+  console.log(`${'='.repeat(60)}\n`);
 });
 
 // Handle server errors
