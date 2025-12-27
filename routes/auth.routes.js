@@ -200,6 +200,15 @@ router.get('/me', protect, async (req, res) => {
 // @access  Public
 router.get(
   '/google',
+  (req, res, next) => {
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+      return res.status(503).json({
+        success: false,
+        message: 'Google OAuth is not configured',
+      });
+    }
+    next();
+  },
   passport.authenticate('google', {
     scope: ['profile', 'email'],
   })
@@ -210,6 +219,15 @@ router.get(
 // @access  Public
 router.get(
   '/google/callback',
+  (req, res, next) => {
+    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
+      return res.status(503).json({
+        success: false,
+        message: 'Google OAuth is not configured',
+      });
+    }
+    next();
+  },
   passport.authenticate('google', { session: false }),
   async (req, res) => {
     try {
