@@ -2,7 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import passport from 'passport';
-import connectDB from './config/database.js';
+import connectDB, { isDBConnected } from './config/database.js';
 import './config/passport.js'; // Initialize passport strategies
 import authRoutes from './routes/auth.routes.js';
 import userRoutes from './routes/user.routes.js';
@@ -15,8 +15,10 @@ import adminRoutes from './routes/admin.routes.js';
 // Load environment variables
 dotenv.config();
 
-// Connect to database
-connectDB();
+// Connect to database (non-blocking - server will start even if DB connection fails)
+connectDB().catch((error) => {
+  console.error('Initial database connection failed, but server will continue:', error.message);
+});
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -32,7 +34,16 @@ app.use(passport.initialize());
 
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ status: 'OK', message: 'SaviorED API is running' });
+  const dbStatus = isDBConnected();
+  res.json({ 
+    status: 'OK', 
+    message: 'SaviorED API is running',
+    database: {
+      connected: dbStatus,
+      status: dbStatus ? 'Connected' : 'Disconnected',
+    },
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // Routes
@@ -47,6 +58,20 @@ app.use('/admin', adminRoutes);
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
+  
+  // Check if error is database-related
+  if (err.name === 'MongoServerError' || err.name === 'MongooseError' || err.message?.includes('MongoDB')) {
+    const dbConnected = isDBConnected();
+    return res.status(503).json({
+      success: false,
+      message: dbConnected 
+        ? 'Database operation failed. Please try again.' 
+        : 'Database connection unavailable. Please try again in a few moments.',
+      error: 'DATABASE_ERROR',
+      databaseConnected: dbConnected,
+    });
+  }
+  
   res.status(err.status || 500).json({
     success: false,
     message: err.message || 'Internal Server Error',
