@@ -10,6 +10,8 @@ import focusSessionRoutes from './routes/focusSession.routes.js';
 import castleRoutes from './routes/castle.routes.js';
 import leaderboardRoutes from './routes/leaderboard.routes.js';
 import treasureChestRoutes from './routes/treasureChest.routes.js';
+import inventoryRoutes from './routes/inventory.routes.js';
+import componentRoutes from './routes/component.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 
 // Load environment variables
@@ -66,6 +68,8 @@ app.use('/api/focus-sessions', focusSessionRoutes);
 app.use('/api/castles', castleRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/treasure-chests', treasureChestRoutes);
+app.use('/api/inventory', inventoryRoutes);
+app.use('/api/components', componentRoutes);
 app.use('/admin', adminRoutes);
 
 // Error handling middleware
@@ -128,6 +132,8 @@ const server = app.listen(PORT, HOST, () => {
   console.log(`   - GET  /api/castles/my-castle - Get user's castle`);
   console.log(`   - GET  /api/leaderboard/global - Get global leaderboard`);
   console.log(`   - GET  /api/treasure-chests/my-chest - Get treasure chest`);
+  console.log(`   - GET  /api/inventory - Get user inventory`);
+  console.log(`   - GET  /api/components - Get user components`);
   console.log(`   - POST /admin/login - Admin login`);
   console.log(`\n💡 Railway Configuration:`);
   console.log(`   - Service must be set to "Public" in Railway dashboard`);
