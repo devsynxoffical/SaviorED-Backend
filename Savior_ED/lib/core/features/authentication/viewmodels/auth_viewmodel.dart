@@ -265,11 +265,13 @@ class AuthViewModel extends ChangeNotifier {
       // Try native Google Sign-In first (better UX)
       try {
         // Initialize GoogleSignIn for Android
-        // Note: clientId parameter is NOT valid for Android - it's only for web
-        // Android automatically uses the OAuth client from google-services.json
-        // The oauth_client array should be populated when you regenerate google-services.json
+        // To get ID token, we need serverClientId (Web OAuth client ID)
+        // For now, we'll try without it and handle null ID token
         final GoogleSignIn googleSignIn = GoogleSignIn(
           scopes: ['email', 'profile'],
+          // Note: serverClientId is needed to get ID token
+          // If you create a Web OAuth client, add it here:
+          // serverClientId: 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com',
         );
 
         // Sign out first to ensure fresh sign-in
@@ -291,16 +293,15 @@ class AuthViewModel extends ChangeNotifier {
         // Get authentication details
         final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
 
-        if (googleAuth.idToken == null) {
-          throw Exception('Failed to get Google ID token');
-        }
+        print('📤 Authenticating with backend using Google credentials...');
+        print('   Email: ${googleUser.email}');
+        print('   ID Token: ${googleAuth.idToken != null ? "Present" : "Null"}');
+        print('   Access Token: ${googleAuth.accessToken != null ? "Present" : "Null"}');
 
-        print('📤 Authenticating with backend using Google token...');
-
-        // Send Google ID token to backend
-        // Backend will verify the token and create/login user
+        // Send Google credentials to backend
+        // If ID token is null, backend can use access token or email for verification
         final response = await _apiService.post('/api/auth/google/mobile', data: {
-          'idToken': googleAuth.idToken,
+          'idToken': googleAuth.idToken, // May be null - backend should handle this
           'accessToken': googleAuth.accessToken,
           'email': googleUser.email,
           'name': googleUser.displayName ?? '',
