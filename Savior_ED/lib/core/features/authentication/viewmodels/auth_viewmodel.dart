@@ -319,6 +319,7 @@ class AuthViewModel extends ChangeNotifier {
             avatar: userData['avatar'] ?? googleUser.photoUrl,
           );
 
+          // Save session data
           await _storageService.saveToken(token);
           await _storageService.saveString('user_id', _user!.id);
           await _storageService.saveString('user_email', _user!.email);
@@ -330,13 +331,20 @@ class AuthViewModel extends ChangeNotifier {
           }
           await _storageService.saveBool('is_authenticated', true);
 
+          print('💾 Session saved:');
+          print('   Token: ${token.substring(0, 20)}...');
+          print('   User ID: ${_user!.id}');
+          print('   Email: ${_user!.email}');
+          print('   Is Authenticated: true');
+
           // Analytics: Log login and set user ID
           await AnalyticsService.logLogin(loginMethod: 'google');
           await AnalyticsService.setUserId(_user!.id);
 
           _setLoading(false);
+          _setError(null);
           notifyListeners();
-          print('✅ Google login successful!');
+          print('✅ Google login successful! User logged in and session stored.');
           return true;
         } else {
           throw Exception(response.data['message'] ?? 'Authentication failed');

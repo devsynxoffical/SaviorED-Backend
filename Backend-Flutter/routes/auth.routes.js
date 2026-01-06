@@ -338,14 +338,16 @@ router.post('/logout', protect, (req, res) => {
 });
 
 // @route   POST /api/auth/google/mobile
-// @desc    Google OAuth login for mobile apps (using ID token)
+// @desc    Google OAuth login for mobile apps (using ID token or access token)
 // @access  Public
 router.post(
   '/google/mobile',
   requireDB, // Ensure database is connected before processing
   [
-    body('idToken').notEmpty().withMessage('Google ID token is required'),
-    body('email').optional().isEmail(),
+    // idToken is optional - if null, we'll use accessToken and email for verification
+    body('idToken').optional(),
+    body('accessToken').optional(),
+    body('email').isEmail().withMessage('Valid email is required'),
   ],
   async (req, res) => {
     try {
@@ -359,7 +361,21 @@ router.post(
 
       const { idToken, accessToken, email, name, photo } = req.body;
 
-      // Verify Google ID token
+      // Validate that we have either idToken or accessToken
+      if (!idToken && !accessToken) {
+        return res.status(400).json({
+          success: false,
+          errors: [{
+            type: 'field',
+            value: null,
+            msg: 'Either Google ID token or access token is required',
+            path: 'idToken',
+            location: 'body'
+          }],
+        });
+      }
+
+      // Verify Google credentials
       // Note: In production, you should verify the token with Google's API
       // For now, we'll create/login user based on the provided info
       
@@ -369,20 +385,24 @@ router.post(
       if (user) {
         // User exists, update Google info if needed
         if (!user.googleId) {
-          user.googleId = idToken; // Store token as identifier (in production, extract user ID from token)
+          // Store ID token if available, otherwise use access token
+          user.googleId = idToken || accessToken;
           user.authMethod = 'google';
           if (photo && !user.avatar) {
             user.avatar = photo;
+          }
+          if (name && !user.name) {
+            user.name = name;
           }
           await user.save();
         }
       } else {
         // Create new user
         user = await User.create({
-          email: email || `google_${Date.now()}@example.com`,
+          email: email,
           name: name || 'Google User',
           avatar: photo,
-          googleId: idToken, // Store token as identifier
+          googleId: idToken || accessToken, // Store token as identifier
           authMethod: 'google',
         });
 

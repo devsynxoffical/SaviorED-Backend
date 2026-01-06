@@ -441,7 +441,10 @@ class _SignUpViewState extends State<SignUpView> {
             final authViewModel = context.read<AuthViewModel>();
             final success = await authViewModel.loginWithGoogle();
             if (!mounted) return;
-            if (!success) {
+            if (success) {
+              // Navigate to castle grounds on successful login
+              Navigator.pushReplacementNamed(context, AppRoutes.castleGrounds);
+            } else {
               ToastService.showError(
                 context,
                 title: "Google Sign In",

@@ -146,7 +146,10 @@ class WelcomeView extends StatelessWidget {
             final authViewModel = context.read<AuthViewModel>();
             final success = await authViewModel.loginWithGoogle();
             if (!context.mounted) return;
-            if (!success) {
+            if (success) {
+              // Navigate to castle grounds on successful login
+              Navigator.pushReplacementNamed(context, AppRoutes.castleGrounds);
+            } else {
               ToastService.showError(
                 context,
                 title: "Google Sign In",
