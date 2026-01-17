@@ -15,6 +15,8 @@ import '../../../widgets/permission_request_dialog.dart';
 import '../viewmodels/focus_time_viewmodel.dart';
 import '../../castle_grounds/viewmodels/castle_grounds_viewmodel.dart';
 import '../../profile/viewmodels/profile_viewmodel.dart';
+import '../../treasure_chest/viewmodels/treasure_chest_viewmodel.dart';
+import '../../inventory/viewmodels/inventory_viewmodel.dart';
 
 /// Focus Time View - Timer screen with state persistence
 class FocusTimeView extends StatefulWidget {
@@ -52,7 +54,10 @@ class _FocusTimeViewState extends State<FocusTimeView>
     _loadTimerState();
     // Load castle data when view opens to show live resources
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final castleViewModel = Provider.of<CastleGroundsViewModel>(context, listen: false);
+      final castleViewModel = Provider.of<CastleGroundsViewModel>(
+        context,
+        listen: false,
+      );
       castleViewModel.getMyCastle();
     });
     // Don't start glitter animation on init - only when focus starts
@@ -183,7 +188,7 @@ class _FocusTimeViewState extends State<FocusTimeView>
           _updateDisplay();
         }
       });
-      
+
       // Show timer overlay if timer is running and not paused
       if (_isRunning && !_isPaused && _totalSeconds > 0) {
         await _appLockService.showTimerOverlay();
@@ -459,7 +464,8 @@ class _FocusTimeViewState extends State<FocusTimeView>
         if (action == 'exit_battle') {
           // Exit battle - complete session first to get rewards, then stop timer and go to castle grounds
           if (_sessionId != null && _isRunning) {
-            final elapsedSeconds = (_initialDurationMinutes * 60) - _totalSeconds;
+            final elapsedSeconds =
+                (_initialDurationMinutes * 60) - _totalSeconds;
             if (elapsedSeconds > 0) {
               await _completeBackendSession();
             }
@@ -486,20 +492,24 @@ class _FocusTimeViewState extends State<FocusTimeView>
     _timer?.cancel();
     _isRunning = true;
     _isPaused = false;
-    
+
     // Update display immediately to show current time
     _updateDisplay();
-    
+
     // Save timer start time only if it doesn't exist (fresh start, not resume)
     await _storageService.ensureInitialized();
     final existingStartTime = _storageService.getString('timer_start_time');
-    
+
     // Create backend session if this is a fresh start (not resuming)
     if (existingStartTime == null && _sessionId == null) {
-      await _createBackendSession();
+      await _createBackendSession(); // Always ensure backend session exists
       await _saveTimerStartTime();
     } else {
-      print('⏰ timer_start_time already exists: $existingStartTime (not overwriting)');
+      // Resume existing session if possible, or start new
+      if (_sessionId == null) {
+        await _createBackendSession();
+      }
+      print('⏰ timer_start_time already exists: $existingStartTime');
     }
     // Always save state after ensuring start time is set
     await _saveTimerState();
@@ -611,7 +621,9 @@ class _FocusTimeViewState extends State<FocusTimeView>
     if (_glitterAnimationController == null) {
       _glitterAnimationController = AnimationController(
         vsync: this,
-        duration: const Duration(seconds: 15), // Even faster duration for more speed
+        duration: const Duration(
+          seconds: 15,
+        ), // Even faster duration for more speed
         lowerBound: 0.0,
         upperBound: 1.0,
       )..repeat();
@@ -661,8 +673,13 @@ class _FocusTimeViewState extends State<FocusTimeView>
   /// Create backend session when timer starts
   Future<void> _createBackendSession() async {
     try {
-      final focusTimeViewModel = Provider.of<FocusTimeViewModel>(context, listen: false);
-      final session = await focusTimeViewModel.createSession(_initialDurationMinutes);
+      final focusTimeViewModel = Provider.of<FocusTimeViewModel>(
+        context,
+        listen: false,
+      );
+      final session = await focusTimeViewModel.createSession(
+        _initialDurationMinutes,
+      );
       if (session != null) {
         setState(() {
           _sessionId = session.id;
@@ -670,9 +687,11 @@ class _FocusTimeViewState extends State<FocusTimeView>
         // Store session ID in local storage
         await _storageService.saveString('timer_session_id', _sessionId!);
         print('✅ Backend session created: $_sessionId');
-        
+
         // Analytics: Log focus session start
-        await AnalyticsService.logFocusSessionStart(durationMinutes: _initialDurationMinutes);
+        await AnalyticsService.logFocusSessionStart(
+          durationMinutes: _initialDurationMinutes,
+        );
       }
     } catch (e) {
       print('⚠️ Failed to create backend session: $e');
@@ -684,7 +703,10 @@ class _FocusTimeViewState extends State<FocusTimeView>
   Future<void> _updateBackendSession() async {
     if (_sessionId == null) return;
     try {
-      final focusTimeViewModel = Provider.of<FocusTimeViewModel>(context, listen: false);
+      final focusTimeViewModel = Provider.of<FocusTimeViewModel>(
+        context,
+        listen: false,
+      );
       final elapsedSeconds = (_initialDurationMinutes * 60) - _totalSeconds;
       await focusTimeViewModel.updateSession(
         sessionId: _sessionId!,
@@ -704,10 +726,13 @@ class _FocusTimeViewState extends State<FocusTimeView>
   Future<void> _completeBackendSession() async {
     if (_sessionId == null) return;
     try {
-      final focusTimeViewModel = Provider.of<FocusTimeViewModel>(context, listen: false);
+      final focusTimeViewModel = Provider.of<FocusTimeViewModel>(
+        context,
+        listen: false,
+      );
       // Calculate elapsed seconds based on current timer state
       final completedSeconds = (_initialDurationMinutes * 60) - _totalSeconds;
-      
+
       // Only complete if there's actual time elapsed (at least 1 second)
       if (completedSeconds <= 0) {
         print('⚠️ No time elapsed, skipping session completion');
@@ -718,33 +743,56 @@ class _FocusTimeViewState extends State<FocusTimeView>
         await _storageService.remove('timer_session_id');
         return;
       }
-      
-      print('✅ Completing session with $completedSeconds seconds (${(completedSeconds / 60).toStringAsFixed(1)} minutes)');
+
+      print(
+        '✅ Completing session with $completedSeconds seconds (${(completedSeconds / 60).toStringAsFixed(1)} minutes)',
+      );
       final rewards = await focusTimeViewModel.completeSession(
         sessionId: _sessionId!,
         totalSeconds: completedSeconds,
       );
-      
+
       if (rewards != null) {
         print('✅ Session completed! Rewards: $rewards');
         print('   - Coins: ${rewards['coins'] ?? 0}');
         print('   - XP: ${rewards['xp'] ?? 0}');
-        
+
         // Analytics: Log focus session complete
         await AnalyticsService.logFocusSessionComplete(
           durationSeconds: completedSeconds,
           coinsEarned: rewards['coins'] ?? 0,
           xpEarned: rewards['xp'] ?? 0,
         );
-        
+
         // Refresh castle and profile data to show updated stats
-        final castleViewModel = Provider.of<CastleGroundsViewModel>(context, listen: false);
-        final profileViewModel = Provider.of<ProfileViewModel>(context, listen: false);
+        final castleViewModel = Provider.of<CastleGroundsViewModel>(
+          context,
+          listen: false,
+        );
+        final profileViewModel = Provider.of<ProfileViewModel>(
+          context,
+          listen: false,
+        );
+        final treasureChestViewModel = Provider.of<TreasureChestViewModel>(
+          context,
+          listen: false,
+        );
+
+        final inventoryViewModel = Provider.of<InventoryViewModel>(
+          context,
+          listen: false,
+        );
+
+        // Update treasure chest progress (500 minutes goal)
+        final elapsedMinutes = completedSeconds / 60.0;
+        await treasureChestViewModel.addFocusMinutes(elapsedMinutes);
+
         await Future.wait([
           castleViewModel.getMyCastle(),
           profileViewModel.refresh(),
+          inventoryViewModel.getInventory(), // Refresh inventory for Wood/Stone
         ]);
-        
+
         // Notify listeners to update UI with new data
         if (mounted) {
           setState(() {
@@ -754,7 +802,7 @@ class _FocusTimeViewState extends State<FocusTimeView>
       } else {
         print('⚠️ Session completion returned no rewards');
       }
-      
+
       // Clear session ID
       setState(() {
         _sessionId = null;
@@ -852,10 +900,12 @@ class _FocusTimeViewState extends State<FocusTimeView>
             // 1. Transparent overlay full screen
             Positioned.fill(
               child: Container(
-                color: Colors.black.withOpacity(0.3), // Semi-transparent overlay
+                color: Colors.black.withOpacity(
+                  0.3,
+                ), // Semi-transparent overlay
               ),
             ),
-            
+
             // 2. Continuous glitter animation
             if (_glitterAnimationController != null)
               Positioned.fill(
@@ -866,7 +916,7 @@ class _FocusTimeViewState extends State<FocusTimeView>
                   ),
                 ),
               ),
-            
+
             // 3. Focus container image with text and buttons
             Center(
               child: Column(
@@ -890,14 +940,16 @@ class _FocusTimeViewState extends State<FocusTimeView>
                                 width: 90.w,
                                 height: 60.h,
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFE8F5E9).withOpacity(0.95),
+                                  color: const Color(
+                                    0xFFE8F5E9,
+                                  ).withOpacity(0.95),
                                   borderRadius: BorderRadius.circular(20.sp),
                                 ),
                               );
                             },
                           ),
                         ),
-                        
+
                         // Text centered on the image card
                         Positioned.fill(
                           child: Padding(
@@ -924,7 +976,7 @@ class _FocusTimeViewState extends State<FocusTimeView>
                                   ),
                                 ),
                                 SizedBox(height: 2.h),
-                                
+
                                 // Main message
                                 Text(
                                   'Your castle is at risk!\nStay focused to build your kingdom.',
@@ -944,7 +996,7 @@ class _FocusTimeViewState extends State<FocusTimeView>
                                   ),
                                 ),
                                 SizedBox(height: 1.5.h),
-                                
+
                                 // Time loss indicator
                                 Text(
                                   "You've lost 5 minutes of study time.",
@@ -968,9 +1020,9 @@ class _FocusTimeViewState extends State<FocusTimeView>
                       ],
                     ),
                   ),
-                  
+
                   SizedBox(height: 2.h),
-                  
+
                   // Buttons below the image card
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 5.w),
@@ -993,7 +1045,9 @@ class _FocusTimeViewState extends State<FocusTimeView>
                                 });
                                 // Complete the session first to get rewards for time spent
                                 if (_sessionId != null && _isRunning) {
-                                  final elapsedSeconds = (_initialDurationMinutes * 60) - _totalSeconds;
+                                  final elapsedSeconds =
+                                      (_initialDurationMinutes * 60) -
+                                      _totalSeconds;
                                   if (elapsedSeconds > 0) {
                                     await _completeBackendSession();
                                   }
@@ -1040,9 +1094,9 @@ class _FocusTimeViewState extends State<FocusTimeView>
                             ),
                           ),
                         ),
-                        
+
                         SizedBox(width: 2.w),
-                        
+
                         // STAY FOCUSED button (yellow/orange)
                         Expanded(
                           child: Material(
@@ -1118,19 +1172,15 @@ class _FocusTimeViewState extends State<FocusTimeView>
               width: 70,
               height: 70,
               errorBuilder: (context, error, stackTrace) {
-                return Container(
-                  color: const Color(0xFFA6B57E),
-                );
+                return Container(color: const Color(0xFFA6B57E));
               },
             ),
           ),
           // 2. Hexagonal pattern background overlay
-          
+
           // 3. Full screen transparent overlay (opacity 0.5)
           Positioned.fill(
-            child: Container(
-              color: const Color(0xFFA6B57E).withOpacity(0.5),
-            ),
+            child: Container(color: const Color(0xFFA6B57E).withOpacity(0.5)),
           ),
           // 4. Continuous glitter animation (on top of transparent overlay)
           if (_glitterAnimationController != null)
@@ -1251,18 +1301,18 @@ class _FocusTimeViewState extends State<FocusTimeView>
                                 color: AppColors.primary.withOpacity(0.15),
                                 borderRadius: BorderRadius.circular(10.sp),
                               ),
-                              ),
+                            ),
 
                             SizedBox(width: 1.5.w),
                             Text(
-                                'FOCUS TO EARN RESOURCES!',
-                                style: TextStyle(
+                              'FOCUS TO EARN RESOURCES!',
+                              style: TextStyle(
                                 fontSize: 20.sp,
-                                  fontWeight: FontWeight.bold,
+                                fontWeight: FontWeight.bold,
                                 color: const Color.fromARGB(255, 255, 255, 255),
-                                  letterSpacing: 0.3,
-                                ),
-                                textAlign: TextAlign.center,
+                                letterSpacing: 0.3,
+                              ),
+                              textAlign: TextAlign.center,
                               overflow: TextOverflow.ellipsis,
                               maxLines: 1,
                             ),
@@ -1282,75 +1332,91 @@ class _FocusTimeViewState extends State<FocusTimeView>
                         SizedBox(height: 10.h),
 
                         // 3. Circular timer with house in center (double ring design)
-                            SizedBox(
+                        SizedBox(
                           width: 65.w,
                           height: 65.w,
-                              child: Stack(
-                                alignment: Alignment.center,
-                                children: [
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
                               // Outer progress ring (thicker border)
-                                  SizedBox(
+                              SizedBox(
                                 width: 65.w,
                                 height: 65.w,
-                                    child: CircularProgressIndicator(
-                                      value: _progress.clamp(0.0, 1.0),
-                                      strokeWidth: 8.sp,
+                                child: CircularProgressIndicator(
+                                  value: _progress.clamp(0.0, 1.0),
+                                  strokeWidth: 8.sp,
                                   backgroundColor: Colors.white.withOpacity(
                                     0.2,
                                   ),
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                    const Color.fromARGB(255, 60, 231, 65), // Bright green border
-                                      ),
-                                    ),
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    const Color.fromARGB(
+                                      255,
+                                      60,
+                                      231,
+                                      65,
+                                    ), // Bright green border
                                   ),
+                                ),
+                              ),
                               // Inner progress ring (increased width, bright green)
                               SizedBox(
                                 width: 58.w,
                                 height: 58.w,
                                 child: CircularProgressIndicator(
                                   value: _progress.clamp(0.0, 1.0),
-                                  strokeWidth: 16.sp, // Increased from 4.sp to 6.sp
+                                  strokeWidth:
+                                      16.sp, // Increased from 4.sp to 6.sp
                                   backgroundColor: Colors.transparent,
                                   valueColor: AlwaysStoppedAnimation<Color>(
-                                   const Color.fromARGB(255, 60, 231, 65), // Bright green (same as outer, not dark)
+                                    const Color.fromARGB(
+                                      255,
+                                      60,
+                                      231,
+                                      65,
+                                    ), // Bright green (same as outer, not dark)
                                   ),
                                 ),
                               ),
                               // Timer text and house - centered in circle
-                                  Column(
-                                    mainAxisSize: MainAxisSize.min,
+                              Column(
+                                mainAxisSize: MainAxisSize.min,
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 crossAxisAlignment: CrossAxisAlignment.center,
-                                    children: [
-                                      // House image in center
+                                children: [
+                                  // House image in center
                                   SizedBox(height: 0.8.h),
                                   // Timer text - centered in circle (updates live)
-                                      Text(
-                                        '${_minutes.toString().padLeft(2, '0')}:${_seconds.toString().padLeft(2, '0')}',
-                                        style: TextStyle(
+                                  Text(
+                                    '${_minutes.toString().padLeft(2, '0')}:${_seconds.toString().padLeft(2, '0')}',
+                                    style: TextStyle(
                                       fontSize: 28.sp,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.black87,
-                                          letterSpacing: 0.5,
-                                        ),
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black87,
+                                      letterSpacing: 0.5,
+                                    ),
                                     textAlign: TextAlign.center,
-                                      ),
+                                  ),
                                   SizedBox(height: 0.3.h),
-                                      // FOCUS TIME label
-                                      Text(
-                                        'FOCUS TIME',
-                                        style: TextStyle(
+                                  // FOCUS TIME label
+                                  Text(
+                                    'FOCUS TIME',
+                                    style: TextStyle(
                                       fontSize: 14.sp,
-                                          fontWeight: FontWeight.w600,
-                                      color: const Color.fromARGB(221, 255, 255, 255).withOpacity(0.7),
-                                          letterSpacing: 0.5,
-                                        ),
+                                      fontWeight: FontWeight.w600,
+                                      color: const Color.fromARGB(
+                                        221,
+                                        255,
+                                        255,
+                                        255,
+                                      ).withOpacity(0.7),
+                                      letterSpacing: 0.5,
+                                    ),
                                     textAlign: TextAlign.center,
-                                      ),
-                                    ],
                                   ),
                                 ],
                               ),
+                            ],
+                          ),
                         ),
 
                         SizedBox(height: 6.h),
@@ -1359,8 +1425,8 @@ class _FocusTimeViewState extends State<FocusTimeView>
                         Padding(
                           padding: EdgeInsets.symmetric(horizontal: 7.w),
                           child: TimerProgressBar(
-                                label: 'TIME LEFT',
-                                progress: _progress.clamp(0.0, 1.0),
+                            label: 'TIME LEFT',
+                            progress: _progress.clamp(0.0, 1.0),
                           ),
                         ),
 
@@ -1394,7 +1460,9 @@ class _FocusTimeViewState extends State<FocusTimeView>
                                           height: 18.w,
                                           decoration: BoxDecoration(
                                             color: Colors.yellow.shade600,
-                                            borderRadius: BorderRadius.circular(35.sp),
+                                            borderRadius: BorderRadius.circular(
+                                              35.sp,
+                                            ),
                                           ),
                                           alignment: Alignment.center,
                                           child: Icon(
@@ -1419,11 +1487,15 @@ class _FocusTimeViewState extends State<FocusTimeView>
                                     // Complete the session first to get rewards
                                     if (_sessionId != null && _isRunning) {
                                       // Calculate elapsed time before stopping
-                                      final elapsedSeconds = (_initialDurationMinutes * 60) - _totalSeconds;
+                                      final elapsedSeconds =
+                                          (_initialDurationMinutes * 60) -
+                                          _totalSeconds;
                                       if (elapsedSeconds > 0) {
                                         // Only complete if there's actual time elapsed (at least 1 second)
-                                        await _completeBackendSession();
                                       }
+                                      // Force one last update before completing
+                                      await _updateBackendSession();
+                                      await _completeBackendSession();
                                     }
                                     _stopTimer();
                                     await _saveTimerState();
@@ -1451,7 +1523,9 @@ class _FocusTimeViewState extends State<FocusTimeView>
                                           height: 18.w,
                                           decoration: BoxDecoration(
                                             color: Colors.red.shade600,
-                                            borderRadius: BorderRadius.circular(35.sp),
+                                            borderRadius: BorderRadius.circular(
+                                              35.sp,
+                                            ),
                                           ),
                                           alignment: Alignment.center,
                                           child: Text(
@@ -1716,7 +1790,8 @@ class GlitterPainter extends CustomPainter {
   static const int particleCount = 55;
   static const double baseXMultiplier = 137.5;
   static const double baseYMultiplier = 197.3;
-  static const double movementRadius = 28.0; // Increased movement radius for even faster speed
+  static const double movementRadius =
+      28.0; // Increased movement radius for even faster speed
   static const double twoPi = 2 * math.pi;
 
   @override
@@ -1725,7 +1800,7 @@ class GlitterPainter extends CustomPainter {
 
     // Pre-calculate values once
     final angle = animationValue * twoPi;
-    
+
     // Create paint objects once and reuse
     final fillPaint = Paint()
       ..style = PaintingStyle.fill
@@ -1741,18 +1816,21 @@ class GlitterPainter extends CustomPainter {
       // Simplified position calculation
       final baseX = (i * baseXMultiplier) % size.width;
       final baseY = (i * baseYMultiplier) % size.height;
-      
+
       // Simplified animation - use single sine wave
       final phase = angle + i;
       final offsetX = baseX + math.sin(phase) * movementRadius;
       final offsetY = baseY + math.cos(phase) * movementRadius;
-      
+
       // Simplified opacity - smoother fade
-      final opacity = (0.4 + 0.6 * (math.sin(phase * 2) * 0.5 + 0.5)).clamp(0.0, 1.0);
-      
+      final opacity = (0.4 + 0.6 * (math.sin(phase * 2) * 0.5 + 0.5)).clamp(
+        0.0,
+        1.0,
+      );
+
       // Increased particle size - bigger but not too much (4.0 to 6.0)
       final particleSize = 4.0 + (math.sin(phase * 1.5) * 0.5 + 0.5) * 2.0;
-      
+
       // Select color based on index
       final colorValue = i % 3;
       if (colorValue == 0) {
@@ -1762,7 +1840,7 @@ class GlitterPainter extends CustomPainter {
       } else {
         fillPaint.color = whiteBase.withOpacity(opacity * 0.6);
       }
-      
+
       // Draw leaf shape for every 4th particle, circle for others
       if (i % 4 == 0) {
         // Draw tiny leaf shape
@@ -1777,11 +1855,11 @@ class GlitterPainter extends CustomPainter {
   // Helper method to draw a tiny leaf shape
   void _drawLeaf(Canvas canvas, Offset center, double size, Paint paint) {
     final path = Path();
-    
+
     // Create a simple leaf shape (oval with a point)
     // Start from top
     path.moveTo(center.dx, center.dy - size);
-    
+
     // Left curve
     path.quadraticBezierTo(
       center.dx - size * 0.8,
@@ -1789,10 +1867,10 @@ class GlitterPainter extends CustomPainter {
       center.dx - size * 0.5,
       center.dy + size * 0.2,
     );
-    
+
     // Bottom point
     path.lineTo(center.dx, center.dy + size);
-    
+
     // Right curve
     path.quadraticBezierTo(
       center.dx + size * 0.5,
@@ -1800,10 +1878,10 @@ class GlitterPainter extends CustomPainter {
       center.dx + size * 0.8,
       center.dy - size * 0.3,
     );
-    
+
     // Close the path
     path.close();
-    
+
     canvas.drawPath(path, paint);
   }
 

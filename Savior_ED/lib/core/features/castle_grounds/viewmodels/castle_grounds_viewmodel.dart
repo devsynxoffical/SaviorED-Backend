@@ -122,4 +122,56 @@ class CastleGroundsViewModel extends ChangeNotifier {
       return false;
     }
   }
+
+  /// Spend resources to build an item
+  Future<bool> spendResources({
+    required int coins,
+    required int wood,
+    required int stone,
+  }) async {
+    try {
+      // Optimistic check
+      if ((_castle?.coins ?? 0) < coins ||
+          (_castle?.wood ?? 0) < wood ||
+          (_castle?.stones ?? 0) < stone) {
+        setError('Not enough resources!');
+        return false;
+      }
+
+      setLoading(true);
+      setError(null);
+
+      // Optimistically update local state immediately for snappy UI
+      _castle = _castle?.copyWith(
+        coins: (_castle?.coins ?? 0) - coins,
+        wood: (_castle?.wood ?? 0) - wood,
+        stones: (_castle?.stones ?? 0) - stone,
+      );
+      notifyListeners();
+
+      final response = await _apiService.post(
+        '/api/castles/spend-resources',
+        data: {'coins': coins, 'wood': wood, 'stone': stone},
+      );
+
+      if (response.data['success'] == true) {
+        // Sync with server state to be sure
+        _castle = CastleGroundsModel.fromJson(response.data['castle']);
+        setLoading(false);
+        notifyListeners();
+        return true;
+      } else {
+        // Revert on failure
+        setError(response.data['message'] ?? 'Failed to spend resources');
+        await getMyCastle(); // Reload to revert state
+        setLoading(false);
+        return false;
+      }
+    } catch (e) {
+      setError(e.toString());
+      await getMyCastle(); // Reload to revert state
+      setLoading(false);
+      return false;
+    }
+  }
 }

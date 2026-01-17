@@ -8,6 +8,7 @@ class PlacedItemModel extends Equatable {
   final int gridX;
   final int gridY;
   final double rotation; // Rotation in degrees (0-360)
+  final bool isFlipped;
   final DateTime placedAt;
 
   const PlacedItemModel({
@@ -17,6 +18,7 @@ class PlacedItemModel extends Equatable {
     required this.gridX,
     required this.gridY,
     this.rotation = 0,
+    this.isFlipped = false,
     required this.placedAt,
   });
 
@@ -28,6 +30,7 @@ class PlacedItemModel extends Equatable {
       gridX: json['gridX'] ?? json['grid_x'] ?? 0,
       gridY: json['gridY'] ?? json['grid_y'] ?? 0,
       rotation: (json['rotation'] ?? 0).toDouble(),
+      isFlipped: json['isFlipped'] ?? json['is_flipped'] ?? false,
       placedAt: json['placedAt'] != null
           ? DateTime.parse(json['placedAt'])
           : DateTime.now(),
@@ -42,6 +45,7 @@ class PlacedItemModel extends Equatable {
       'gridX': gridX,
       'gridY': gridY,
       'rotation': rotation,
+      'isFlipped': isFlipped,
       'placedAt': placedAt.toIso8601String(),
     };
   }
@@ -53,6 +57,7 @@ class PlacedItemModel extends Equatable {
     int? gridX,
     int? gridY,
     double? rotation,
+    bool? isFlipped,
     DateTime? placedAt,
   }) {
     return PlacedItemModel(
@@ -62,11 +67,19 @@ class PlacedItemModel extends Equatable {
       gridX: gridX ?? this.gridX,
       gridY: gridY ?? this.gridY,
       rotation: rotation ?? this.rotation,
+      isFlipped: isFlipped ?? this.isFlipped,
       placedAt: placedAt ?? this.placedAt,
     );
   }
 
   @override
-  List<Object> get props => [id, itemType, itemId, gridX, gridY, rotation];
+  List<Object> get props => [
+    id,
+    itemType,
+    itemId,
+    gridX,
+    gridY,
+    rotation,
+    isFlipped,
+  ];
 }
-

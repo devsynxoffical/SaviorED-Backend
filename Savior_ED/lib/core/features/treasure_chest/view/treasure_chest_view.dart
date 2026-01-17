@@ -26,9 +26,15 @@ class _TreasureChestViewState extends State<TreasureChestView> {
   }
 
   void _loadTreasureChest() {
-    final treasureChestViewModel = Provider.of<TreasureChestViewModel>(context, listen: false);
-    final castleViewModel = Provider.of<CastleGroundsViewModel>(context, listen: false);
-    
+    final treasureChestViewModel = Provider.of<TreasureChestViewModel>(
+      context,
+      listen: false,
+    );
+    final castleViewModel = Provider.of<CastleGroundsViewModel>(
+      context,
+      listen: false,
+    );
+
     treasureChestViewModel.getMyChest().catchError((error) {
       print('❌ Failed to load treasure chest: $error');
       if (mounted) {
@@ -41,7 +47,7 @@ class _TreasureChestViewState extends State<TreasureChestView> {
         );
       }
     });
-    
+
     castleViewModel.getMyCastle();
   }
 
@@ -62,9 +68,7 @@ class _TreasureChestViewState extends State<TreasureChestView> {
                   'assets/images/treasure.jpg',
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: const Color(0xFF1A1410),
-                    );
+                    return Container(color: const Color(0xFF1A1410));
                   },
                 );
               },
@@ -109,9 +113,16 @@ class _TreasureChestViewState extends State<TreasureChestView> {
                             ),
                             SizedBox(width: 2.w),
                             IconButton(
-                              icon: const Icon(Icons.refresh, color: Colors.white),
+                              icon: const Icon(
+                                Icons.refresh,
+                                color: Colors.white,
+                              ),
                               onPressed: () {
-                                final treasureChestViewModel = Provider.of<TreasureChestViewModel>(context, listen: false);
+                                final treasureChestViewModel =
+                                    Provider.of<TreasureChestViewModel>(
+                                      context,
+                                      listen: false,
+                                    );
                                 treasureChestViewModel.refresh();
                                 castleViewModel.getMyCastle();
                               },
@@ -130,9 +141,10 @@ class _TreasureChestViewState extends State<TreasureChestView> {
                   child: Consumer<TreasureChestViewModel>(
                     builder: (context, treasureChestViewModel, child) {
                       final chest = treasureChestViewModel.treasureChest;
-                      
+
                       // Show loading only if actually loading and no error
-                      if (treasureChestViewModel.isLoading && treasureChestViewModel.errorMessage == null) {
+                      if (treasureChestViewModel.isLoading &&
+                          treasureChestViewModel.errorMessage == null) {
                         return Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
@@ -152,7 +164,7 @@ class _TreasureChestViewState extends State<TreasureChestView> {
                           ),
                         );
                       }
-                      
+
                       if (treasureChestViewModel.errorMessage != null) {
                         return Center(
                           child: Padding(
@@ -177,7 +189,8 @@ class _TreasureChestViewState extends State<TreasureChestView> {
                                 ),
                                 SizedBox(height: 1.h),
                                 Text(
-                                  treasureChestViewModel.errorMessage ?? 'Unknown error',
+                                  treasureChestViewModel.errorMessage ??
+                                      'Unknown error',
                                   style: TextStyle(
                                     color: Colors.white.withOpacity(0.9),
                                     fontSize: 14.sp,
@@ -192,7 +205,10 @@ class _TreasureChestViewState extends State<TreasureChestView> {
                                   icon: const Icon(Icons.refresh),
                                   label: const Text('Retry'),
                                   style: ElevatedButton.styleFrom(
-                                    padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.5.h),
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 4.w,
+                                      vertical: 1.5.h,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -200,7 +216,7 @@ class _TreasureChestViewState extends State<TreasureChestView> {
                           ),
                         );
                       }
-                      
+
                       if (chest == null) {
                         return const Center(
                           child: Text(
@@ -211,7 +227,10 @@ class _TreasureChestViewState extends State<TreasureChestView> {
                       }
 
                       return SingleChildScrollView(
-                        padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 4.w,
+                          vertical: 2.h,
+                        ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
@@ -236,8 +255,8 @@ class _TreasureChestViewState extends State<TreasureChestView> {
                             Text(
                               chest.isUnlocked
                                   ? chest.isClaimed
-                                      ? 'Rewards claimed! Complete more sessions to unlock new rewards.'
-                                      : 'Treasure chest unlocked! Claim your rewards.'
+                                        ? 'Rewards claimed! Complete more sessions to unlock new rewards.'
+                                        : 'Treasure chest unlocked! Claim your rewards.'
                                   : '${chest.progressPercentage.toStringAsFixed(0)}% complete to unlock a new treasure chest!',
                               style: TextStyle(
                                 fontSize: 12.sp,
@@ -257,7 +276,10 @@ class _TreasureChestViewState extends State<TreasureChestView> {
                                 height: AppSizes.buttonHeightMedium,
                                 decoration: BoxDecoration(
                                   gradient: const LinearGradient(
-                                    colors: [Color(0xFFFFD54F), Color(0xFFFFC107)],
+                                    colors: [
+                                      Color(0xFFFFD54F),
+                                      Color(0xFFFFC107),
+                                    ],
                                   ),
                                   borderRadius: BorderRadius.circular(50.sp),
                                   boxShadow: [
@@ -273,16 +295,31 @@ class _TreasureChestViewState extends State<TreasureChestView> {
                                   color: Colors.transparent,
                                   child: InkWell(
                                     onTap: () async {
-                                      final success = await treasureChestViewModel.claimRewards();
+                                      final success =
+                                          await treasureChestViewModel
+                                              .claimRewards();
+                                      if (success) {
+                                        // Refresh castle resources immediately
+                                        Provider.of<CastleGroundsViewModel>(
+                                          context,
+                                          listen: false,
+                                        ).getMyCastle();
+                                      }
                                       if (mounted) {
-                                        ScaffoldMessenger.of(context).showSnackBar(
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
                                           SnackBar(
                                             content: Text(
                                               success
                                                   ? 'Rewards claimed successfully!'
-                                                  : treasureChestViewModel.errorMessage ?? 'Failed to claim rewards',
+                                                  : treasureChestViewModel
+                                                            .errorMessage ??
+                                                        'Failed to claim rewards',
                                             ),
-                                            backgroundColor: success ? Colors.green : Colors.red,
+                                            backgroundColor: success
+                                                ? Colors.green
+                                                : Colors.red,
                                           ),
                                         );
                                       }
@@ -319,7 +356,10 @@ class _TreasureChestViewState extends State<TreasureChestView> {
                                   child: Row(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      const Icon(Icons.check_circle, color: Colors.green),
+                                      const Icon(
+                                        Icons.check_circle,
+                                        color: Colors.green,
+                                      ),
                                       SizedBox(width: 2.w),
                                       Text(
                                         'REWARDS CLAIMED',
@@ -334,7 +374,8 @@ class _TreasureChestViewState extends State<TreasureChestView> {
                                   ),
                                 ),
                               ),
-                            if (!chest.isUnlocked) SizedBox(height: AppSizes.buttonHeightMedium),
+                            if (!chest.isUnlocked)
+                              SizedBox(height: AppSizes.buttonHeightMedium),
                             SizedBox(height: 1.h),
                             SizedBox(height: 4.h),
                             // Virtual rewards section
@@ -477,10 +518,7 @@ class _TreasureChestViewState extends State<TreasureChestView> {
             shape: BoxShape.circle,
             border: reward.isUnlocked
                 ? null
-                : Border.all(
-                    color: Colors.white.withOpacity(0.3),
-                    width: 2,
-                  ),
+                : Border.all(color: Colors.white.withOpacity(0.3), width: 2),
             boxShadow: reward.isUnlocked
                 ? [
                     BoxShadow(
@@ -493,7 +531,9 @@ class _TreasureChestViewState extends State<TreasureChestView> {
           ),
           child: Icon(
             icon,
-            color: reward.isUnlocked ? Colors.white : Colors.white.withOpacity(0.5),
+            color: reward.isUnlocked
+                ? Colors.white
+                : Colors.white.withOpacity(0.5),
             size: 24.sp,
           ),
         ),
@@ -506,7 +546,9 @@ class _TreasureChestViewState extends State<TreasureChestView> {
             style: TextStyle(
               fontSize: 13.sp,
               fontWeight: FontWeight.w600,
-              color: reward.isUnlocked ? Colors.white : Colors.white.withOpacity(0.6),
+              color: reward.isUnlocked
+                  ? Colors.white
+                  : Colors.white.withOpacity(0.6),
             ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,

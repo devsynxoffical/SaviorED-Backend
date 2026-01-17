@@ -84,6 +84,36 @@ class CastleGroundsModel extends Equatable {
     };
   }
 
+  CastleGroundsModel copyWith({
+    String? id,
+    String? userId,
+    int? coins,
+    int? stones,
+    int? wood,
+    int? level,
+    String? levelName,
+    double? progressPercentage,
+    int? nextLevel,
+    String? castleImage,
+    List<PlacedItemModel>? placedItems,
+    DateTime? updatedAt,
+  }) {
+    return CastleGroundsModel(
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      coins: coins ?? this.coins,
+      stones: stones ?? this.stones,
+      wood: wood ?? this.wood,
+      level: level ?? this.level,
+      levelName: levelName ?? this.levelName,
+      progressPercentage: progressPercentage ?? this.progressPercentage,
+      nextLevel: nextLevel ?? this.nextLevel,
+      castleImage: castleImage ?? this.castleImage,
+      placedItems: placedItems ?? this.placedItems,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
   @override
   List<Object?> get props => [
     id,

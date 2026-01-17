@@ -23,6 +23,9 @@ dependencies:
   
   # Local Storage
   shared_preferences: ^2.2.3
+
+  # 3D Rendering
+  vector_math: ^2.1.4
   
   # Utilities
   equatable: ^2.0.5
@@ -46,15 +49,8 @@ flutter:
   uses-material-design: true
   
   assets:
-    - assets/images/castle.png
-    - assets/images/treasure.jpg
-    - assets/images/leadboard_castle.png
-    - assets/images/google_logo.png
-    - assets/images/house.png
-    - assets/images/final_house.jpg
-    - assets/images/castle_build.mp4
-    - assets/images/building1.mp4
-    - assets/images/final_working.mp4
+    - assets/images/
+    - assets/images/level1/
     - assets/images/focus_container.png
     - assets/images/exit_battle.png
     - assets/images/start_focus.png

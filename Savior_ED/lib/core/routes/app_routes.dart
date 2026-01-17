@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:savior_ed/core/features/focus_time/view/focus_time_view.dart';
 import 'package:savior_ed/core/features/castle_grounds/view/castle_ground_view.dart';
-import 'package:savior_ed/core/features/castle_grounds/view/castle_build_view.dart';
 import 'package:savior_ed/core/features/treasure_chest/view/treasure_chest_view.dart';
 import 'package:savior_ed/core/features/leaderboard/view/leaderboard_view.dart';
 import 'package:savior_ed/core/features/profile/view/profile_view.dart';
@@ -57,7 +56,7 @@ class AppRoutes {
     leaderboard: (context) => const LeaderboardView(),
     profile: (context) => const ProfileView(),
     inventory: (context) => const InventoryView(),
-    castleBuild: (context) => const CastleBuildView(),
+    // castleBuild: (context) => const CastleBuildView(),
     baseBuilding: (context) => const BaseBuildingView(),
   };
 }

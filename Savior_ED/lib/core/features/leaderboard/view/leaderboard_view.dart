@@ -1,311 +1,305 @@
 import 'package:flutter/material.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
+import 'package:provider/provider.dart';
 import '../../../consts/app_colors.dart';
+import '../viewmodels/leaderboard_viewmodel.dart';
+import '../../castle_grounds/viewmodels/castle_grounds_viewmodel.dart';
+import '../../base_building/view/base_building_view.dart';
+import '../../base_building/viewmodels/base_building_viewmodel.dart';
 
 /// Leaderboard View - Kingdom Rankings
-class LeaderboardView extends StatelessWidget {
+class LeaderboardView extends StatefulWidget {
   const LeaderboardView({super.key});
 
   @override
+  State<LeaderboardView> createState() => _LeaderboardViewState();
+}
+
+class _LeaderboardViewState extends State<LeaderboardView> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<LeaderboardViewModel>().getGlobalLeaderboard();
+      // Also refresh common resources
+      context.read<CastleGroundsViewModel>().getMyCastle();
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final viewModel = context.watch<LeaderboardViewModel>();
+    final castleViewModel = context.watch<CastleGroundsViewModel>();
+
     return Scaffold(
       backgroundColor: const Color(0xFF9DB89D), // Sage green background
       appBar: AppBar(
         backgroundColor: const Color(0xFF8BA88B),
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.menu, color: Colors.white, size: 24.sp),
-          onPressed: () {
-            Navigator.pop(context);
-          },
+          icon: Icon(Icons.arrow_back, color: Colors.white, size: 22.sp),
+          onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'KINGDOM RANKINGS',
           style: TextStyle(
             color: Colors.white,
-            fontSize: 16,
+            fontSize: 18.sp,
             fontWeight: FontWeight.w600,
-            letterSpacing: 1,
+            letterSpacing: 1.2,
           ),
         ),
         centerTitle: true,
         actions: [
           IconButton(
-            icon: const CircleAvatar(
-              backgroundColor: Colors.white,
-              radius: 16,
-              child: Icon(Icons.person, color: AppColors.primary, size: 18),
-            ),
-            onPressed: () {},
+            icon: Icon(Icons.refresh, color: Colors.white, size: 20.sp),
+            onPressed: () => viewModel.getGlobalLeaderboard(),
           ),
         ],
       ),
       body: Column(
         children: [
-          // Resource bar
+          // Resource bar (Live Data)
           Container(
-            padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
-            color: const Color(0xFF8BA88B),
+            padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.2.h),
+            decoration: BoxDecoration(
+              color: const Color(0xFF8BA88B),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black12,
+                  offset: Offset(0, 2),
+                  blurRadius: 4,
+                ),
+              ],
+            ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 _buildResourceChip(
                   Icons.monetization_on,
-                  '1280 COINS',
+                  '${castleViewModel.castle?.coins ?? 0} COINS',
                   AppColors.coinGold,
                 ),
                 SizedBox(width: 4.w),
                 _buildResourceChip(
                   Icons.construction,
-                  '875 STONES',
+                  '${castleViewModel.castle?.stones ?? 0} STONES',
                   AppColors.stoneGray,
                 ),
                 SizedBox(width: 4.w),
                 _buildResourceChip(
                   Icons.forest,
-                  '500 WOOD',
+                  '${castleViewModel.castle?.wood ?? 0} WOOD',
                   AppColors.woodBrown,
                 ),
               ],
             ),
           ),
 
-          // Navigation tabs
+          // Navigation Info
           Container(
             padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
-            color: const Color(0xFF8BA88B),
+            color: const Color(0xFF8BA88B).withValues(alpha: 0.9),
             child: Row(
               children: [
-                _buildTab('GLOBAL', isSelected: true),
-                SizedBox(width: 2.w),
-                _buildTab('SCHOOL', isSelected: true),
-                const Spacer(),
-                Text(
-                  'SORT',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12.sp,
-                    fontWeight: FontWeight.w600,
+                Container(
+                  padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 1.h),
+                  decoration: BoxDecoration(
+                    color: AppColors.coinGold.withValues(alpha: 0.4),
+                    borderRadius: BorderRadius.circular(25.sp),
+                    border: Border.all(color: AppColors.coinGold, width: 1.5),
+                  ),
+                  child: Text(
+                    'GLOBAL',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12.sp,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
-                SizedBox(width: 1.w),
-                Icon(
-                  Icons.filter_list,
-                  color: Colors.white,
-                  size: 18.sp,
+                const Spacer(),
+                Text(
+                  'LIVE RANKINGS',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 10.sp,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
+                SizedBox(width: 1.5.w),
+                Icon(Icons.flash_on, color: AppColors.coinGold, size: 14.sp),
               ],
             ),
           ),
 
           // Content
           Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  SizedBox(height: 2.h),
-                  
-                  // Castle image - centered
-                  Center(
-                    child: Image.asset(
-                      'assets/images/leadboard_castle.png',
-                      width: 90.w,
-                      height: 25.h,
-                      fit: BoxFit.contain,
-                      filterQuality: FilterQuality.high,
-                      errorBuilder: (context, error, stackTrace) {
-                        debugPrint('Error loading leaderboard castle image: $error');
-                        return Container(
-                          width: 90.w,
-                          height: 25.h,
-                          color: Colors.black12,
-                          child: Center(
-                            child: Icon(
-                              Icons.castle,
-                              size: 80.sp,
-                              color: Colors.white70,
+            child: viewModel.isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(color: Colors.white),
+                  )
+                : viewModel.errorMessage != null
+                ? Center(
+                    child: Text(
+                      viewModel.errorMessage!,
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                  )
+                : RefreshIndicator(
+                    onRefresh: () => viewModel.getGlobalLeaderboard(),
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: Column(
+                        children: [
+                          SizedBox(height: 2.h),
+
+                          // Castle image
+                          Center(
+                            child: Image.asset(
+                              'assets/images/leadboard_castle.png',
+                              width: 90.w,
+                              height: 22.h,
+                              fit: BoxFit.contain,
+                              errorBuilder: (_, __, ___) => Icon(
+                                Icons.castle,
+                                size: 60.sp,
+                                color: Colors.white24,
+                              ),
                             ),
                           ),
-                        );
-                      },
-                    ),
-                  ),
 
-                  SizedBox(height: 1.h),
+                          SizedBox(height: 2.h),
 
-                  // TOP 10 Banner
-                  Container(
-                    width: double.infinity,
-                    padding: EdgeInsets.symmetric(vertical: 1.5.h),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF2196F3),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.2),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.shield,
-                          color: AppColors.coinGold,
-                          size: 24.sp,
-                        ),
-                        SizedBox(width: 2.w),
-                        const Text(
-                          'TOP 10',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            letterSpacing: 2,
+                          // TOP 10 Banner
+                          Container(
+                            width: double.infinity,
+                            padding: EdgeInsets.symmetric(vertical: 2.h),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  const Color(0xFF1E88E5),
+                                  const Color(0xFF42A5F5),
+                                ],
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black26,
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.shield,
+                                  color: AppColors.coinGold,
+                                  size: 22.sp,
+                                ),
+                                SizedBox(width: 3.w),
+                                Text(
+                                  'TOP 10 GUARDIANS',
+                                  style: TextStyle(
+                                    fontSize: 20.sp,
+                                    fontWeight: FontWeight.w900,
+                                    color: Colors.white,
+                                    letterSpacing: 2,
+                                  ),
+                                ),
+                                SizedBox(width: 3.w),
+                                Icon(
+                                  Icons.shield,
+                                  color: AppColors.coinGold,
+                                  size: 22.sp,
+                                ),
+                              ],
+                            ),
                           ),
-                        ),
-                        SizedBox(width: 2.w),
-                        Icon(
-                          Icons.shield,
-                          color: AppColors.coinGold,
-                          size: 24.sp,
-                        ),
-                      ],
+
+                          SizedBox(height: 2.h),
+
+                          // Dynamic Rankings List
+                          Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 4.w),
+                            child: ListView.separated(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              itemCount: viewModel.globalEntries.length,
+                              separatorBuilder: (_, __) =>
+                                  SizedBox(height: 1.5.h),
+                              itemBuilder: (context, index) {
+                                final item = viewModel.globalEntries[index];
+
+                                // Map color logic
+                                Color shieldColor;
+                                if (item.rank == 1) {
+                                  shieldColor = AppColors.coinGold;
+                                } else if (item.rank == 2) {
+                                  shieldColor = const Color(0xFFC0C0C0);
+                                } else if (item.rank == 3) {
+                                  shieldColor = const Color(0xFFCD7F32);
+                                } else {
+                                  shieldColor = Colors.grey[400]!;
+                                }
+
+                                return _buildRankingItem(
+                                  rank: item.rank,
+                                  name: item.name,
+                                  level: item.level,
+                                  coins: item.coins ?? 0,
+                                  shieldColor: shieldColor,
+                                  castleColor: _getCastleColor(item.rank),
+                                  avatar: item.avatar,
+                                  progress: item.progressHours,
+                                  progressMax: item.progressMaxHours,
+                                  buttonText: item.buttonText,
+                                  buttonType: item.buttonType,
+                                  userId: item.userId,
+                                );
+                              },
+                            ),
+                          ),
+
+                          SizedBox(height: 4.h),
+                        ],
+                      ),
                     ),
                   ),
-
-                  SizedBox(height: 2.h),
-
-                  // Rankings List
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 4.w),
-                    child: Column(
-                      children: [
-                        _buildRankingItem(
-                          rank: 1,
-                          name: 'KING',
-                          level: 'Level 4 Royal Fortress',
-                          coins: 1250,
-                          shieldColor: AppColors.coinGold,
-                          castleColor: AppColors.coinGold,
-                          buttonText: 'VIEW PROFILE',
-                          buttonColor: AppColors.secondary,
-                        ),
-                        SizedBox(height: 1.5.h),
-                        _buildRankingItem(
-                          rank: 2,
-                          name: 'Ethan. S',
-                          level: 'Level 4 Royal Fonesa',
-                          coins: null,
-                          shieldColor: AppColors.coinGold,
-                          castleColor: AppColors.coinGold,
-                          buttonText: 'CLAIM REWARD',
-                          buttonColor: AppColors.warning,
-                        ),
-                        SizedBox(height: 1.5.h),
-                        _buildRankingItem(
-                          rank: 3,
-                          name: 'Oliva. L',
-                          level: 'Level 3 Royal Keep',
-                          coins: 1250,
-                          progress: 1830,
-                          progressMax: 1800,
-                          shieldColor: const Color(0xFFC0C0C0),
-                          castleColor: AppColors.stoneGray,
-                          buttonText: 'VIEW PROFILE',
-                          buttonColor: AppColors.secondary,
-                        ),
-                        SizedBox(height: 1.5.h),
-                        _buildRankingItem(
-                          rank: 4,
-                          name: 'Qize 3 Royal Keep',
-                          level: 'Level 3 Royal 1800 hrs',
-                          coins: 750,
-                          shieldColor: const Color(0xFFC0C0C0),
-                          castleColor: AppColors.stoneGray,
-                          buttonText: 'COINS EARNED',
-                          buttonColor: AppColors.stoneGray,
-                        ),
-                        SizedBox(height: 1.5.h),
-                        _buildRankingItem(
-                          rank: 5,
-                          name: 'Ben. K',
-                          level: 'Level 2 Guard Tower',
-                          coins: null,
-                          progress: 900,
-                          progressMax: 1730,
-                          shieldColor: const Color(0xFFFF6B6B),
-                          castleColor: AppColors.stoneGray,
-                          buttonText: null,
-                          showStudyTime: true,
-                        ),
-                        SizedBox(height: 1.5.h),
-                        _buildRankingItem(
-                          rank: 6,
-                          name: 'Level 2 Tower',
-                          level: 'Level 2 Guard Tower',
-                          coins: null,
-                          shieldColor: const Color(0xFF8B4513),
-                          castleColor: const Color(0xFF8B4513),
-                          buttonText: null,
-                          showStudyTime: true,
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  SizedBox(height: 3.h),
-                ],
-              ),
-            ),
           ),
         ],
       ),
     );
   }
 
+  Color _getCastleColor(int rank) {
+    if (rank == 1) return AppColors.coinGold;
+    if (rank == 2) return const Color(0xFFB0BEC5);
+    return AppColors.stoneGray;
+  }
+
   Widget _buildResourceChip(IconData icon, String label, Color color) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: 2.w, vertical: 0.5.h),
+      padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.6.h),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
+        color: Colors.white.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(20.sp),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, color: color, size: 16.sp),
-          const SizedBox(width: 4),
+          SizedBox(width: 1.5.w),
           Text(
             label,
-            style: const TextStyle(
+            style: TextStyle(
               color: Colors.white,
-              fontSize: 11,
-              fontWeight: FontWeight.w600,
+              fontSize: 11.sp,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildTab(String text, {bool isSelected = false}) {
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 0.8.h),
-      decoration: BoxDecoration(
-        color: isSelected
-            ? AppColors.coinGold.withOpacity(0.3)
-            : Colors.transparent,
-        borderRadius: BorderRadius.circular(20.sp),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: 12.sp,
-          fontWeight: FontWeight.w600,
-        ),
       ),
     );
   }
@@ -314,210 +308,183 @@ class LeaderboardView extends StatelessWidget {
     required int rank,
     required String name,
     required String level,
-    int? coins,
-    double? progress,
-    double? progressMax,
+    required int coins,
     required Color shieldColor,
     required Color castleColor,
+    String? avatar,
+    double? progress,
+    double? progressMax,
     String? buttonText,
-    Color? buttonColor,
-    bool showStudyTime = false,
+    String? buttonType,
+    required String userId,
   }) {
-    return Container(
-      padding: EdgeInsets.all(3.w),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12.sp),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          // Rank shield with crown
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              Icon(
-                Icons.shield,
-                color: shieldColor,
-                size: 40.sp,
-              ),
-              if (rank <= 3)
-                Positioned(
-                  top: -2.sp,
-                  child: Icon(
-                    Icons.workspace_premium,
-                    color: shieldColor,
-                    size: 16.sp,
-                  ),
-                ),
-              Text(
-                '#$rank',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 12.sp,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ),
-
-          SizedBox(width: 3.w),
-
-          // Castle icon
-          Icon(
-            Icons.castle,
-            color: castleColor,
-            size: 32.sp,
-          ),
-
-          SizedBox(width: 3.w),
-
-          // Name and level
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return GestureDetector(
+      onTap: () async {
+        final bbViewModel = context.read<BaseBuildingViewModel>();
+        await bbViewModel.fetchVisitorBase(userId, name);
+        if (context.mounted) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const BaseBuildingView()),
+          );
+        }
+      },
+      child: Container(
+        padding: EdgeInsets.all(4.w),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.95),
+          borderRadius: BorderRadius.circular(15.sp),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // Rank shield
+            Stack(
+              alignment: Alignment.center,
               children: [
-                Text(
-                  name,
-                  style: TextStyle(
-                    fontSize: 16.sp,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                SizedBox(height: 0.5.h),
-                Text(
-                  level,
-                  style: TextStyle(
-                    fontSize: 12.sp,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-                if (progress != null && progressMax != null) ...[
-                  SizedBox(height: 1.h),
-                  Container(
-                    height: 6.sp,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(3.sp),
-                      color: Colors.grey[300],
+                Icon(Icons.shield, color: shieldColor, size: 38.sp),
+                if (rank <= 3)
+                  Positioned(
+                    top: -2.sp,
+                    child: Icon(
+                      Icons.workspace_premium,
+                      color: Colors.white38,
+                      size: 14.sp,
                     ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(3.sp),
+                  ),
+                Text(
+                  '$rank',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 13.sp,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+
+            SizedBox(width: 4.w),
+
+            // Avatar (from live data)
+            CircleAvatar(
+              radius: 18.sp,
+              backgroundColor: castleColor.withValues(alpha: 0.2),
+              backgroundImage: avatar != null ? NetworkImage(avatar) : null,
+              child: avatar == null
+                  ? Icon(Icons.castle, color: castleColor, size: 20.sp)
+                  : null,
+            ),
+
+            SizedBox(width: 4.w),
+
+            // Info
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 15.sp,
+                      fontWeight: FontWeight.w800,
+                      color: const Color(0xFF2E7D32),
+                    ),
+                  ),
+                  Text(
+                    level,
+                    style: TextStyle(
+                      fontSize: 11.sp,
+                      color: Colors.black54,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  if (progress != null &&
+                      progressMax != null &&
+                      progressMax > 0) ...[
+                    SizedBox(height: 0.8.h),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
                       child: LinearProgressIndicator(
-                        value: progress / progressMax,
-                        backgroundColor: Colors.transparent,
+                        value: (progress / progressMax).clamp(0.0, 1.0),
+                        minHeight: 1.h,
+                        backgroundColor: Colors.grey[200],
                         valueColor: AlwaysStoppedAnimation<Color>(
                           AppColors.secondary,
                         ),
                       ),
                     ),
-                  ),
-                  SizedBox(height: 0.5.h),
-                  Text(
-                    '${progress.toInt()}/${progressMax.toInt()} hrs',
-                    style: TextStyle(
-                      fontSize: 10.sp,
-                      color: AppColors.textSecondary,
-                    ),
-                  ),
+                  ],
                 ],
-              ],
+              ),
             ),
-          ),
 
-          // Right side - Coins or Button
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              if (coins != null)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
                       Icons.monetization_on,
                       color: AppColors.coinGold,
-                      size: 18.sp,
+                      size: 16.sp,
                     ),
-                    SizedBox(width: 0.5.w),
+                    SizedBox(width: 1.w),
                     Text(
-                      '$coins COINS',
+                      '$coins',
                       style: TextStyle(
-                        fontSize: 12.sp,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w900,
+                        color: const Color(0xFF388E3C),
                       ),
                     ),
                   ],
                 ),
-              if (showStudyTime) ...[
-                SizedBox(height: 0.5.h),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.access_time,
-                      size: 14.sp,
-                      color: AppColors.textSecondary,
-                    ),
-                    SizedBox(width: 0.5.w),
-                    Text(
-                      'STUDY TIME',
-                      style: TextStyle(
-                        fontSize: 9.sp,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 0.5.h),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.monetization_on,
-                      size: 14.sp,
-                      color: AppColors.textSecondary,
-                    ),
-                    SizedBox(width: 0.5.w),
-                    Text(
-                      'COINS EARNED',
-                      style: TextStyle(
-                        fontSize: 9.sp,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-              if (buttonText != null) ...[
-                SizedBox(height: 1.h),
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 3.w, vertical: 1.h),
-                  decoration: BoxDecoration(
-                    color: buttonColor ?? AppColors.secondary,
-                    borderRadius: BorderRadius.circular(20.sp),
-                  ),
-                  child: Text(
-                    buttonText,
-                    style: TextStyle(
-                      fontSize: 11.sp,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
+                Text(
+                  'COINS',
+                  style: TextStyle(
+                    fontSize: 8.sp,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black26,
+                    letterSpacing: 0.5,
                   ),
                 ),
+                if (buttonText != null) ...[
+                  SizedBox(height: 0.8.h),
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 2.w,
+                      vertical: 0.5.h,
+                    ),
+                    decoration: BoxDecoration(
+                      color: buttonType == 'claim_reward'
+                          ? AppColors.warning
+                          : AppColors.secondary,
+                      borderRadius: BorderRadius.circular(15.sp),
+                    ),
+                    child: Text(
+                      buttonText,
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 9.sp,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
               ],
-            ],
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }
 }
-

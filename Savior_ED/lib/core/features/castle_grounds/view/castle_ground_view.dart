@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../consts/app_colors.dart';
 import '../../../routes/app_routes.dart';
@@ -18,6 +19,9 @@ class _CastleGroundsViewState extends State<CastleGroundsView> {
   @override
   void initState() {
     super.initState();
+    // Safety Lock: Ensure the game is in Portrait Mode when here
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+
     // Load data when view opens
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final castleViewModel = Provider.of<CastleGroundsViewModel>(
@@ -279,16 +283,7 @@ class _CastleGroundsViewState extends State<CastleGroundsView> {
                                     );
                                   },
                                 ),
-                                _buildCircularActionButton(
-                                  Icons.castle,
-                                  'VIEW CASTLE',
-                                  () {
-                                    Navigator.pushNamed(
-                                      context,
-                                      AppRoutes.castleBuild,
-                                    );
-                                  },
-                                ),
+                                // Removed VIEW CASTLE button
                                 _buildCircularActionButton(
                                   Icons.card_giftcard,
                                   'REWARDS',
@@ -296,16 +291,6 @@ class _CastleGroundsViewState extends State<CastleGroundsView> {
                                     Navigator.pushNamed(
                                       context,
                                       AppRoutes.treasureChest,
-                                    );
-                                  },
-                                ),
-                                _buildCircularActionButton(
-                                  Icons.inventory_2,
-                                  'INVENTORY',
-                                  () {
-                                    Navigator.pushNamed(
-                                      context,
-                                      AppRoutes.inventory,
                                     );
                                   },
                                 ),

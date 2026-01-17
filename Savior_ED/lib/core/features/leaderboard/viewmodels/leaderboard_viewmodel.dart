@@ -4,7 +4,7 @@ import '../models/leaderboard_entry_model.dart';
 
 class LeaderboardViewModel extends ChangeNotifier {
   final ApiService _apiService = ApiService();
-  
+
   bool _isLoading = false;
   String? _errorMessage;
   List<LeaderboardEntryModel> _globalEntries = [];
@@ -39,11 +39,15 @@ class LeaderboardViewModel extends ChangeNotifier {
         queryParameters: {'page': page, 'limit': limit},
       );
 
-      if (response.data['success'] == true) {
+      if (response.statusCode == 200 && response.data['success'] == true) {
         final entriesList = response.data['entries'] as List;
         _globalEntries = entriesList
             .map((json) => LeaderboardEntryModel.fromJson(json))
             .toList();
+
+        // Ensure top COINS are on top as requested
+        _globalEntries.sort((a, b) => (b.coins ?? 0).compareTo(a.coins ?? 0));
+
         setLoading(false);
         notifyListeners();
       } else {
@@ -68,11 +72,15 @@ class LeaderboardViewModel extends ChangeNotifier {
         queryParameters: {'page': page, 'limit': limit},
       );
 
-      if (response.data['success'] == true) {
+      if (response.statusCode == 200 && response.data['success'] == true) {
         final entriesList = response.data['entries'] as List;
         _schoolEntries = entriesList
             .map((json) => LeaderboardEntryModel.fromJson(json))
             .toList();
+
+        // Ensure top COINS are on top as requested
+        _schoolEntries.sort((a, b) => (b.coins ?? 0).compareTo(a.coins ?? 0));
+
         setLoading(false);
         notifyListeners();
       } else {
@@ -85,4 +93,3 @@ class LeaderboardViewModel extends ChangeNotifier {
     }
   }
 }
-
