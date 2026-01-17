@@ -48,6 +48,17 @@ const castleSchema = new mongoose.Schema(
       stones: { type: Number, default: 50 },
       wood: { type: Number, default: 30 },
     },
+    // Base layout items
+    layout: [{
+      id: String,
+      itemId: String,
+      itemType: String,
+      gridX: Number,
+      gridY: Number,
+      rotation: Number,
+      isFlipped: Boolean,
+      placedAt: Date,
+    }],
   },
   {
     timestamps: true,

@@ -41,7 +41,9 @@ router.get('/my-castle', protect, async (req, res) => {
         nextLevel: castle.nextLevel,
         castleImage: castle.castleImage,
         levelRequirements: castle.levelRequirements,
+        levelRequirements: castle.levelRequirements,
         updatedAt: castle.updatedAt,
+        layout: castle.layout || [], // Return layout field
       },
     });
   } catch (error) {
@@ -49,6 +51,39 @@ router.get('/my-castle', protect, async (req, res) => {
       success: false,
       message: error.message || 'Server error',
     });
+  }
+});
+
+// @route   PUT /api/castles/layout
+// @desc    Update castle layout
+// @access  Private
+router.put('/layout', protect, async (req, res) => {
+  try {
+    const { items, level } = req.body;
+
+    let castle = await Castle.findOne({ userId: req.user._id });
+    if (!castle) {
+      return res.status(404).json({ success: false, message: 'Castle not found' });
+    }
+
+    castle.layout = items;
+    // Optionally update level if provided (though level-up route handles logic better)
+    if (level) castle.level = level;
+
+    await castle.save();
+
+    res.json({
+      success: true,
+      message: 'Layout updated successfully',
+      castle: {
+        id: castle._id,
+        level: castle.level,
+        layout: castle.layout,
+      }
+    });
+  } catch (error) {
+    console.error('Layout update error:', error);
+    res.status(500).json({ success: false, message: 'Server error updating layout' });
   }
 });
 
