@@ -146,18 +146,24 @@ router.put('/:id/complete', protect, async (req, res) => {
       });
     }
 
-    // Calculate rewards (1 coin per minute, 0.5 stones per minute, 0.3 wood per minute)
-    const minutes = Math.floor(session.totalSeconds / 60);
+    // Calculate rewards (1 coin per minute, 0.5 stones per minute, 1 wood per minute)
+    // Use totalSeconds from body for accurate calculation
+    const finalSeconds = req.body.totalSeconds !== undefined ? req.body.totalSeconds : session.totalSeconds;
+    const minutes = Math.floor(finalSeconds / 60);
     const earnedCoins = Math.floor(minutes * 1);
     const earnedStones = Math.floor(minutes * 0.5);
-    const earnedWood = Math.floor(minutes * 0.3);
-    
+    const earnedWood = Math.floor(minutes * 1.0);
+
     // Calculate XP (10 XP per minute of focused time)
     const earnedXP = minutes * 10;
+
+    console.log(`🎁 Completing Session with ${finalSeconds}s (${minutes} mins):`);
+    console.log(`   - Coins: ${earnedCoins}, Wood: ${earnedWood}, Stones: ${earnedStones}, XP: ${earnedXP}`);
 
     session.isCompleted = true;
     session.isRunning = false;
     session.endTime = new Date();
+    session.totalSeconds = finalSeconds;
     session.earnedCoins = earnedCoins;
     session.earnedStones = earnedStones;
     session.earnedWood = earnedWood;
@@ -170,7 +176,7 @@ router.put('/:id/complete', protect, async (req, res) => {
     user.completedSessions += 1;
     user.totalFocusHours += minutes / 60;
     user.totalCoins += earnedCoins;
-    
+
     // Add XP and check for level up
     const levelUpResult = user.addXP(earnedXP);
     await user.save();
@@ -188,24 +194,24 @@ router.put('/:id/complete', protect, async (req, res) => {
     // Update treasure chest progress (based on completed sessions)
     const chest = await TreasureChest.findOne({ userId: req.user._id })
       .sort({ createdAt: -1 });
-    
+
     if (chest) {
       // Progress increases by 5% per completed session, max 100%
       const newProgress = Math.min(chest.progressPercentage + 5, 100);
       chest.progressPercentage = newProgress;
-      
+
       // Unlock chest if progress reaches 100%
       if (newProgress >= 100 && !chest.isUnlocked) {
         chest.isUnlocked = true;
         chest.unlockedAt = new Date();
-        
+
         // Unlock all rewards
         chest.rewards.forEach(reward => {
           reward.isUnlocked = true;
           reward.unlockedAt = new Date();
         });
       }
-      
+
       await chest.save();
     }
 
