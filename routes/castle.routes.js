@@ -67,6 +67,7 @@ router.put('/layout', protect, async (req, res) => {
     }
 
     castle.layout = items;
+    castle.markModified('layout');
     // Optionally update level if provided (though level-up route handles logic better)
     if (level) castle.level = level;
 
@@ -171,6 +172,7 @@ router.get('/:userId', protect, async (req, res) => {
         progressPercentage: castle.progressPercentage,
         nextLevel: castle.nextLevel,
         castleImage: castle.castleImage,
+        layout: castle.layout || [], // Allow viewing other user's layout
       },
     });
   } catch (error) {
