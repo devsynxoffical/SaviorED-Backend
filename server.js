@@ -17,8 +17,32 @@ import adminRoutes from './routes/admin.routes.js';
 // Load environment variables
 dotenv.config();
 
-// Connect to database (non-blocking - server will start even if DB connection fails)
-connectDB().catch((error) => {
+// Connect to database
+connectDB().then(async () => {
+  console.log('✅ Database connected. Checking admin status...');
+  try {
+    const User = (await import('./models/User.model.js')).default;
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@saviored.com';
+    const adminPassword = process.env.ADMIN_PASSWORD || 'ChangeThisPassword123!';
+
+    const adminExists = await User.findOne({ email: adminEmail });
+    if (!adminExists) {
+      await User.create({
+        email: adminEmail,
+        password: adminPassword,
+        name: 'Admin User',
+        role: 'admin',
+        authMethod: 'email',
+        isActive: true
+      });
+      console.log(`🚀 Brand new Admin account created: ${adminEmail}`);
+    } else {
+      console.log('✅ Admin account already exists in database.');
+    }
+  } catch (err) {
+    console.error('⚠️ Could not verify/create admin:', err.message);
+  }
+}).catch((error) => {
   console.error('Initial database connection failed, but server will continue:', error.message);
 });
 
