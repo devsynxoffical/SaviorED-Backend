@@ -28,8 +28,22 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
+const allowedOrigins = process.env.FRONTEND_URL
+  ? process.env.FRONTEND_URL.split(',').map(o => o.trim())
+  : ['*'];
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || '*', // Allow all origins for mobile apps
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps)
+    if (!origin) return callback(null, true);
+
+    if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.warn(`CORS blocked for origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
 }));
 app.use(express.json());
@@ -38,8 +52,8 @@ app.use(passport.initialize());
 
 // Root route for Railway health checks
 app.get('/', (req, res) => {
-  res.json({ 
-    status: 'OK', 
+  res.json({
+    status: 'OK',
     message: 'SaviorED API is running',
     service: 'SaviorED Backend',
     version: '1.0.0',
@@ -50,8 +64,8 @@ app.get('/', (req, res) => {
 // Health check
 app.get('/health', (req, res) => {
   const dbStatus = isDBConnected();
-  res.json({ 
-    status: 'OK', 
+  res.json({
+    status: 'OK',
     message: 'SaviorED API is running',
     database: {
       connected: dbStatus,
@@ -75,20 +89,20 @@ app.use('/admin', adminRoutes);
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  
+
   // Check if error is database-related
   if (err.name === 'MongoServerError' || err.name === 'MongooseError' || err.message?.includes('MongoDB')) {
     const dbConnected = isDBConnected();
     return res.status(503).json({
       success: false,
-      message: dbConnected 
-        ? 'Database operation failed. Please try again.' 
+      message: dbConnected
+        ? 'Database operation failed. Please try again.'
         : 'Database connection unavailable. Please try again in a few moments.',
       error: 'DATABASE_ERROR',
       databaseConnected: dbConnected,
     });
   }
-  
+
   res.status(err.status || 500).json({
     success: false,
     message: err.message || 'Internal Server Error',
