@@ -280,6 +280,32 @@ router.get('/treasure-chests', protect, adminOnly, async (req, res) => {
   }
 });
 
+// @route   GET /admin/treasure-chests/stats
+// @desc    Get treasure chest stats
+// @access  Private (Admin)
+router.get('/treasure-chests/stats', protect, adminOnly, async (req, res) => {
+  try {
+    const totalChests = await TreasureChest.countDocuments();
+    const unlockedChests = await TreasureChest.countDocuments({ isUnlocked: true });
+    const claimedChests = await TreasureChest.countDocuments({ isClaimed: true });
+
+    res.json({
+      success: true,
+      stats: {
+        total: totalChests,
+        unlocked: unlockedChests,
+        claimed: claimedChests,
+        locked: totalChests - unlockedChests
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error',
+    });
+  }
+});
+
 // @route   GET /admin/dashboard/activity
 // @desc    Get recent activity
 // @access  Private (Admin)
