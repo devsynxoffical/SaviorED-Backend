@@ -254,6 +254,24 @@ router.get('/focus-sessions', protect, adminOnly, async (req, res) => {
   }
 });
 
+// @route   DELETE /admin/focus-sessions/:id
+// @desc    Delete focus session
+// @access  Private (Admin)
+router.delete('/focus-sessions/:id', protect, adminOnly, async (req, res) => {
+  try {
+    const session = await FocusSession.findByIdAndDelete(req.params.id);
+    if (!session) {
+      return res.status(404).json({ success: false, message: 'Session not found' });
+    }
+    res.json({ success: true, message: 'Session deleted' });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error',
+    });
+  }
+});
+
 // @route   GET /admin/castle-grounds
 // @desc    Get all castles
 // @access  Private (Admin)
@@ -289,6 +307,28 @@ router.get('/castle-grounds', protect, adminOnly, async (req, res) => {
   }
 });
 
+// @route   PUT /admin/castle-grounds/:id
+// @desc    Update castle
+// @access  Private (Admin)
+router.put('/castle-grounds/:id', protect, adminOnly, async (req, res) => {
+  try {
+    const castle = await Castle.findByIdAndUpdate(
+      req.params.id,
+      { $set: req.body },
+      { new: true, runValidators: true }
+    );
+    if (!castle) {
+      return res.status(404).json({ success: false, message: 'Castle not found' });
+    }
+    res.json({ success: true, castle });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error',
+    });
+  }
+});
+
 // @route   GET /admin/treasure-chests
 // @desc    Get all treasure chests
 // @access  Private (Admin)
@@ -316,6 +356,28 @@ router.get('/treasure-chests', protect, adminOnly, async (req, res) => {
         pages: Math.ceil(total / limit),
       },
     });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error',
+    });
+  }
+});
+
+// @route   PUT /admin/treasure-chests/:id
+// @desc    Update treasure chest
+// @access  Private (Admin)
+router.put('/treasure-chests/:id', protect, adminOnly, async (req, res) => {
+  try {
+    const chest = await TreasureChest.findByIdAndUpdate(
+      req.params.id,
+      { $set: req.body },
+      { new: true, runValidators: true }
+    );
+    if (!chest) {
+      return res.status(404).json({ success: false, message: 'Chest not found' });
+    }
+    res.json({ success: true, chest });
   } catch (error) {
     res.status(500).json({
       success: false,
