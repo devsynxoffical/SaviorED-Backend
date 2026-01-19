@@ -100,7 +100,7 @@ router.get('/dashboard/stats', protect, adminOnly, async (req, res) => {
     const activeUsers = await User.countDocuments({ isActive: true });
     const totalSessions = await FocusSession.countDocuments();
     const completedSessions = await FocusSession.countDocuments({ isCompleted: true });
-    
+
     const sessions = await FocusSession.find({ isCompleted: true });
     const totalFocusHours = sessions.reduce((sum, s) => {
       return sum + (s.totalSeconds / 3600);
@@ -253,6 +253,139 @@ router.get('/treasure-chests', protect, adminOnly, async (req, res) => {
     res.json({
       success: true,
       chests,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error',
+    });
+  }
+});
+
+// @route   GET /admin/dashboard/activity
+// @desc    Get recent activity
+// @access  Private (Admin)
+router.get('/dashboard/activity', protect, adminOnly, async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+
+    // Get recent completed sessions as activity
+    const activities = await FocusSession.find({ isCompleted: true })
+      .populate('userId', 'name email avatar')
+      .sort({ createdAt: -1 })
+      .limit(limit);
+
+    res.json({
+      success: true,
+      activities: activities.map(session => ({
+        id: session._id,
+        user: session.userId?.name || 'Unknown User',
+        userAvatar: session.userId?.avatar,
+        action: 'completed a focus session',
+        details: `${Math.round(session.totalSeconds / 60)} minutes`,
+        time: session.createdAt,
+      })),
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error',
+    });
+  }
+});
+
+// @route   GET /admin/leaderboard/global
+// @desc    Get global leaderboard for admin
+// @access  Private (Admin)
+router.get('/leaderboard/global', protect, adminOnly, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    // Rank by totalFocusHours (descending)
+    const users = await User.find()
+      .sort({ totalFocusHours: -1 })
+      .skip(skip)
+      .limit(limit)
+      .select('name email avatar level totalFocusHours totalCoins experiencePoints updatedAt');
+
+    const total = await User.countDocuments();
+
+    // Map to expected format
+    const entries = users.map((user, index) => ({
+      id: user._id,
+      rank: skip + index + 1,
+      userId: user._id,
+      name: user.name,
+      email: user.email,
+      avatar: user.avatar,
+      level: user.level,
+      coins: user.totalCoins,
+      progressHours: user.totalFocusHours,
+      progressMaxHours: 100, // Example max for progress bar
+      updatedAt: user.updatedAt,
+    }));
+
+    res.json({
+      success: true,
+      entries,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error',
+    });
+  }
+});
+
+// @route   GET /admin/leaderboard/school
+// @desc    Get school leaderboard for admin (Placeholder logic: Rank by XP)
+// @access  Private (Admin)
+router.get('/leaderboard/school', protect, adminOnly, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    // Rank by experiencePoints (descending) as proxy for "School/Academic" rank
+    const users = await User.find()
+      .sort({ experiencePoints: -1 })
+      .skip(skip)
+      .limit(limit)
+      .select('name email avatar level totalFocusHours totalCoins experiencePoints updatedAt');
+
+    const total = await User.countDocuments();
+
+    const entries = users.map((user, index) => ({
+      id: user._id,
+      rank: skip + index + 1,
+      userId: user._id,
+      name: user.name,
+      email: user.email,
+      avatar: user.avatar,
+      level: user.level,
+      coins: user.totalCoins,
+      progressHours: user.totalFocusHours,
+      progressMaxHours: 100,
+      updatedAt: user.updatedAt,
+    }));
+
+    res.json({
+      success: true,
+      entries,
       pagination: {
         page,
         limit,
