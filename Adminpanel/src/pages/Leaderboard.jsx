@@ -17,40 +17,18 @@ const Leaderboard = () => {
   const loadLeaderboard = async () => {
     try {
       setLoading(true);
-      const response = type === 'global' 
+      const response = type === 'global'
         ? await leaderboardAPI.getGlobal(page, 20)
         : await leaderboardAPI.getSchool(page, 20);
-      // Mock data for development
-      const mockEntries = Array.from({ length: 20 }, (_, i) => ({
-        id: `entry-${i + 1}`,
-        userId: `user-${Math.floor(Math.random() * 50) + 1}`,
-        name: `User ${i + 1}`,
-        level: `Level ${Math.floor(Math.random() * 20) + 1}`,
-        rank: (page - 1) * 20 + i + 1,
-        coins: Math.floor(Math.random() * 5000),
-        progressHours: Math.random() * 100,
-        progressMaxHours: 100,
-        avatar: null,
-        updatedAt: new Date(Date.now() - Math.random() * 10000000000).toISOString(),
-      }));
-      setEntries(mockEntries);
-      setTotalPages(5);
+
+      if (response.data.success) {
+        setEntries(response.data.entries);
+        setTotalPages(response.data.pagination?.pages || 1);
+      }
     } catch (error) {
       console.error('Error loading leaderboard:', error);
-      const mockEntries = Array.from({ length: 20 }, (_, i) => ({
-        id: `entry-${i + 1}`,
-        userId: `user-${Math.floor(Math.random() * 50) + 1}`,
-        name: `User ${i + 1}`,
-        level: `Level ${Math.floor(Math.random() * 20) + 1}`,
-        rank: (page - 1) * 20 + i + 1,
-        coins: Math.floor(Math.random() * 5000),
-        progressHours: Math.random() * 100,
-        progressMaxHours: 100,
-        avatar: null,
-        updatedAt: new Date(Date.now() - Math.random() * 10000000000).toISOString(),
-      }));
-      setEntries(mockEntries);
-      setTotalPages(5);
+      setEntries([]);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }

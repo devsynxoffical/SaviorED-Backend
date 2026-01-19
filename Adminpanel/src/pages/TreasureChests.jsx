@@ -17,41 +17,14 @@ const TreasureChests = () => {
     try {
       setLoading(true);
       const response = await treasureChestsAPI.getAll(page, 20);
-      // Mock data for development
-      const mockChests = Array.from({ length: 20 }, (_, i) => ({
-        id: `chest-${i + 1}`,
-        userId: `user-${Math.floor(Math.random() * 50) + 1}`,
-        progressPercentage: Math.random() * 100,
-        isUnlocked: Math.random() > 0.5,
-        isClaimed: Math.random() > 0.7,
-        rewards: [
-          { id: '1', title: 'Gold Badge', iconName: 'gold', colorHex: '#ffd700', isUnlocked: true },
-          { id: '2', title: 'Silver Badge', iconName: 'silver', colorHex: '#c0c0c0', isUnlocked: Math.random() > 0.5 },
-        ],
-        unlockedAt: Math.random() > 0.5 ? new Date(Date.now() - Math.random() * 10000000000).toISOString() : null,
-        claimedAt: Math.random() > 0.7 ? new Date(Date.now() - Math.random() * 10000000000).toISOString() : null,
-        createdAt: new Date(Date.now() - Math.random() * 10000000000).toISOString(),
-      }));
-      setChests(mockChests);
-      setTotalPages(5);
+      if (response.data.success) {
+        setChests(response.data.chests);
+        setTotalPages(response.data.pagination?.pages || 1);
+      }
     } catch (error) {
       console.error('Error loading chests:', error);
-      const mockChests = Array.from({ length: 20 }, (_, i) => ({
-        id: `chest-${i + 1}`,
-        userId: `user-${Math.floor(Math.random() * 50) + 1}`,
-        progressPercentage: Math.random() * 100,
-        isUnlocked: Math.random() > 0.5,
-        isClaimed: Math.random() > 0.7,
-        rewards: [
-          { id: '1', title: 'Gold Badge', iconName: 'gold', colorHex: '#ffd700', isUnlocked: true },
-          { id: '2', title: 'Silver Badge', iconName: 'silver', colorHex: '#c0c0c0', isUnlocked: Math.random() > 0.5 },
-        ],
-        unlockedAt: Math.random() > 0.5 ? new Date(Date.now() - Math.random() * 10000000000).toISOString() : null,
-        claimedAt: Math.random() > 0.7 ? new Date(Date.now() - Math.random() * 10000000000).toISOString() : null,
-        createdAt: new Date(Date.now() - Math.random() * 10000000000).toISOString(),
-      }));
-      setChests(mockChests);
-      setTotalPages(5);
+      setChests([]);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }

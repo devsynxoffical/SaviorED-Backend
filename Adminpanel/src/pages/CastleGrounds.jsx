@@ -17,35 +17,14 @@ const CastleGrounds = () => {
     try {
       setLoading(true);
       const response = await castleGroundsAPI.getAll(page, 20);
-      // Mock data for development
-      const mockCastles = Array.from({ length: 20 }, (_, i) => ({
-        id: `castle-${i + 1}`,
-        userId: `user-${Math.floor(Math.random() * 50) + 1}`,
-        coins: Math.floor(Math.random() * 10000),
-        stones: Math.floor(Math.random() * 5000),
-        wood: Math.floor(Math.random() * 3000),
-        level: Math.floor(Math.random() * 20) + 1,
-        levelName: `Level ${Math.floor(Math.random() * 20) + 1}`,
-        progressPercentage: Math.random() * 100,
-        updatedAt: new Date(Date.now() - Math.random() * 10000000000).toISOString(),
-      }));
-      setCastles(mockCastles);
-      setTotalPages(5);
+      if (response.data.success) {
+        setCastles(response.data.castles);
+        setTotalPages(response.data.pagination?.pages || 1);
+      }
     } catch (error) {
       console.error('Error loading castles:', error);
-      const mockCastles = Array.from({ length: 20 }, (_, i) => ({
-        id: `castle-${i + 1}`,
-        userId: `user-${Math.floor(Math.random() * 50) + 1}`,
-        coins: Math.floor(Math.random() * 10000),
-        stones: Math.floor(Math.random() * 5000),
-        wood: Math.floor(Math.random() * 3000),
-        level: Math.floor(Math.random() * 20) + 1,
-        levelName: `Level ${Math.floor(Math.random() * 20) + 1}`,
-        progressPercentage: Math.random() * 100,
-        updatedAt: new Date(Date.now() - Math.random() * 10000000000).toISOString(),
-      }));
-      setCastles(mockCastles);
-      setTotalPages(5);
+      setCastles([]);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }

@@ -556,15 +556,6 @@ class _CastleGroundsViewState extends State<CastleGroundsView> {
                   ),
                   _buildDrawerItem(
                     context,
-                    icon: Icons.inventory_2,
-                    title: 'Inventory',
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.pushNamed(context, AppRoutes.inventory);
-                    },
-                  ),
-                  _buildDrawerItem(
-                    context,
                     icon: Icons.emoji_events,
                     title: 'Leaderboard',
                     onTap: () {

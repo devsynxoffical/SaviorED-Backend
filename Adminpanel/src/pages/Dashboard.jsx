@@ -18,19 +18,12 @@ const Dashboard = () => {
         dashboardAPI.getStats(),
         dashboardAPI.getRecentActivity(),
       ]);
-      setStats(statsRes.data);
-      setActivity(activityRes.data);
+      setStats(statsRes.data.stats || statsRes.data);
+      setActivity(activityRes.data.activities || activityRes.data || []);
     } catch (error) {
       console.error('Error loading dashboard:', error);
-      // Set mock data for development
-      setStats({
-        totalUsers: 1250,
-        activeUsers: 342,
-        totalFocusSessions: 8567,
-        totalFocusHours: 2845.5,
-        totalCastles: 890,
-        totalTreasureChests: 2340,
-      });
+      // Fallback only if absolutely necessary, but we want real data
+      setStats(null);
       setActivity([]);
     } finally {
       setLoading(false);

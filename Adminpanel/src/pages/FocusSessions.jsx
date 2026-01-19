@@ -17,39 +17,14 @@ const FocusSessions = () => {
     try {
       setLoading(true);
       const response = await focusSessionsAPI.getAll(page, 20);
-      // Mock data for development
-      const mockSessions = Array.from({ length: 20 }, (_, i) => ({
-        id: `session-${i + 1}`,
-        userId: `user-${Math.floor(Math.random() * 50) + 1}`,
-        durationMinutes: Math.floor(Math.random() * 120) + 15,
-        totalSeconds: Math.floor(Math.random() * 7200) + 900,
-        isCompleted: Math.random() > 0.3,
-        earnedCoins: Math.floor(Math.random() * 100),
-        earnedStones: Math.floor(Math.random() * 50),
-        earnedWood: Math.floor(Math.random() * 30),
-        startTime: new Date(Date.now() - Math.random() * 86400000).toISOString(),
-        endTime: new Date(Date.now() - Math.random() * 86400000).toISOString(),
-        createdAt: new Date(Date.now() - Math.random() * 10000000000).toISOString(),
-      }));
-      setSessions(mockSessions);
-      setTotalPages(5);
+      if (response.data.success) {
+        setSessions(response.data.sessions);
+        setTotalPages(response.data.pagination?.pages || 1);
+      }
     } catch (error) {
       console.error('Error loading sessions:', error);
-      const mockSessions = Array.from({ length: 20 }, (_, i) => ({
-        id: `session-${i + 1}`,
-        userId: `user-${Math.floor(Math.random() * 50) + 1}`,
-        durationMinutes: Math.floor(Math.random() * 120) + 15,
-        totalSeconds: Math.floor(Math.random() * 7200) + 900,
-        isCompleted: Math.random() > 0.3,
-        earnedCoins: Math.floor(Math.random() * 100),
-        earnedStones: Math.floor(Math.random() * 50),
-        earnedWood: Math.floor(Math.random() * 30),
-        startTime: new Date(Date.now() - Math.random() * 86400000).toISOString(),
-        endTime: new Date(Date.now() - Math.random() * 86400000).toISOString(),
-        createdAt: new Date(Date.now() - Math.random() * 10000000000).toISOString(),
-      }));
-      setSessions(mockSessions);
-      setTotalPages(5);
+      setSessions([]);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }

@@ -755,117 +755,144 @@ class _BaseBuildingViewState extends State<BaseBuildingView> {
               ),
               SizedBox(width: 1.w),
               if (viewModel.isVisitorMode) ...[
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: Colors.blueAccent.withValues(alpha: 0.8),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.white30),
-                  ),
+                Expanded(
                   child: Row(
-                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.visibility, color: Colors.white, size: 16),
-                      SizedBox(width: 8),
-                      Text(
-                        "VISITING ${viewModel.visitorName?.toUpperCase()}'S KINGDOM",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12.sp,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const Spacer(),
-              ] else ...[
-                Container(
-                  padding: const EdgeInsets.all(2),
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.amber, width: 2),
-                  ),
-                  child: CircleAvatar(
-                    radius: 16,
-                    backgroundColor: Colors.grey.shade800,
-                    backgroundImage: authViewModel.user?.avatar != null
-                        ? NetworkImage(authViewModel.user!.avatar!)
-                        : null,
-                    child: authViewModel.user?.avatar == null
-                        ? const Icon(
-                            Icons.person,
-                            color: Colors.white,
-                            size: 20,
-                          )
-                        : null,
-                  ),
-                ),
-                SizedBox(width: 2.w),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      userName.toUpperCase(),
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14.sp,
-                        shadows: [
-                          BoxShadow(
-                            color: Colors.black,
-                            blurRadius: 4,
-                            offset: Offset(1, 1),
-                          ),
-                        ],
-                      ),
-                    ),
-                    SizedBox(height: 0.5.h),
-                    GestureDetector(
-                      onTap: () => _showRequirementsDialog(viewModel),
-                      child: Container(
-                        width: 120, // Small width for the bar
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
+                      Container(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.5),
+                          color: Colors.blueAccent.withValues(alpha: 0.8),
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: Colors.white24),
+                          border: Border.all(color: Colors.white30),
                         ),
                         child: Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Expanded(
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(4),
-                                child: LinearProgressIndicator(
-                                  value: completion,
-                                  backgroundColor: Colors.grey.shade700,
-                                  valueColor:
-                                      const AlwaysStoppedAnimation<Color>(
-                                        Colors.greenAccent,
-                                      ),
-                                  minHeight: 6,
-                                ),
-                              ),
+                            Icon(
+                              Icons.visibility,
+                              color: Colors.white,
+                              size: 16,
                             ),
-                            const SizedBox(width: 6),
-                            Text(
-                              '${(completion * 100).toInt()}%',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 10.sp,
-                                fontWeight: FontWeight.bold,
+                            SizedBox(width: 8),
+                            Flexible(
+                              child: Text(
+                                "VISITING ${viewModel.visitorName?.toUpperCase()}'S KINGDOM",
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 10
+                                      .sp, // Slightly smaller for narrow screens
+                                ),
                               ),
                             ),
                           ],
                         ),
                       ),
-                    ),
-                  ],
+                      const Spacer(),
+                    ],
+                  ),
                 ),
-                const Spacer(),
+              ] else ...[
+                Expanded(
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.amber, width: 2),
+                        ),
+                        child: CircleAvatar(
+                          radius: 14, // Slightly smaller
+                          backgroundColor: Colors.grey.shade800,
+                          backgroundImage: authViewModel.user?.avatar != null
+                              ? NetworkImage(authViewModel.user!.avatar!)
+                              : null,
+                          child: authViewModel.user?.avatar == null
+                              ? const Icon(
+                                  Icons.person,
+                                  color: Colors.white,
+                                  size: 16,
+                                )
+                              : null,
+                        ),
+                      ),
+                      SizedBox(width: 2.w),
+                      Flexible(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              userName.toUpperCase(),
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12.sp, // Slightly smaller
+                                shadows: [
+                                  BoxShadow(
+                                    color: Colors.black,
+                                    blurRadius: 4,
+                                    offset: Offset(1, 1),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            SizedBox(height: 0.5.h),
+                            GestureDetector(
+                              onTap: () => _showRequirementsDialog(viewModel),
+                              child: Container(
+                                width: 100, // Slightly narrower
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 3,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.5),
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: Colors.white24),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Expanded(
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(4),
+                                        child: LinearProgressIndicator(
+                                          value: completion,
+                                          backgroundColor: Colors.grey.shade700,
+                                          valueColor:
+                                              const AlwaysStoppedAnimation<
+                                                Color
+                                              >(Colors.greenAccent),
+                                          minHeight: 4,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      '${(completion * 100).toInt()}%',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 8.sp,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const Spacer(),
+                    ],
+                  ),
+                ),
               ],
 
               // Right Section: Resources
@@ -874,9 +901,9 @@ class _BaseBuildingViewState extends State<BaseBuildingView> {
                 userCoins,
                 Colors.amber,
               ),
-              const SizedBox(width: 10),
+              SizedBox(width: 1.w),
               _buildResourceChip(Icons.forest, woodCount, Colors.brown),
-              const SizedBox(width: 10),
+              SizedBox(width: 1.w),
               _buildResourceChip(Icons.landscape, stoneCount, Colors.grey),
               SizedBox(width: 2.w),
             ],
@@ -888,7 +915,7 @@ class _BaseBuildingViewState extends State<BaseBuildingView> {
 
   Widget _buildResourceChip(IconData icon, int value, Color color) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(15),
@@ -897,14 +924,14 @@ class _BaseBuildingViewState extends State<BaseBuildingView> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: color, size: 16),
-          const SizedBox(width: 6),
+          Icon(icon, color: color, size: 14),
+          const SizedBox(width: 4),
           Text(
             value.toString(),
             style: TextStyle(
               color: Colors.white,
               fontWeight: FontWeight.bold,
-              fontSize: 12.sp,
+              fontSize: 10.sp,
             ),
           ),
         ],
@@ -1001,23 +1028,27 @@ class _BaseBuildingViewState extends State<BaseBuildingView> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'LVL ${viewModel.currentLevel} $name'.toUpperCase(),
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16.sp,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 1,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'LVL ${viewModel.currentLevel} $name'.toUpperCase(),
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14.sp, // Slightly smaller
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1,
+                        ),
                       ),
-                    ),
-                    Text(
-                      'STURDY FORTIFICATION',
-                      style: TextStyle(color: Colors.white54, fontSize: 12.sp),
-                    ),
-                  ],
+                      Text(
+                        'STURDY FORTIFICATION',
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: Colors.white54, fontSize: 10.sp),
+                      ),
+                    ],
+                  ),
                 ),
                 IconButton(
                   icon: const Icon(Icons.close, color: Colors.white54),

@@ -502,17 +502,17 @@ class _FocusTimeViewState extends State<FocusTimeView>
 
     // Create backend session if this is a fresh start (not resuming)
     if (existingStartTime == null && _sessionId == null) {
-      await _createBackendSession(); // Always ensure backend session exists
+      _createBackendSession(); // Start in background 📡
       await _saveTimerStartTime();
     } else {
       // Resume existing session if possible, or start new
       if (_sessionId == null) {
-        await _createBackendSession();
+        _createBackendSession(); // Start in background 📡
       }
       print('⏰ timer_start_time already exists: $existingStartTime');
     }
     // Always save state after ensuring start time is set
-    await _saveTimerState();
+    _saveTimerState(); // No need to await here either
 
     // Start continuous glitter animation when focus starts
     _startGlitterAnimation();
@@ -1483,22 +1483,14 @@ class _FocusTimeViewState extends State<FocusTimeView>
                               Material(
                                 color: Colors.transparent,
                                 child: InkWell(
-                                  onTap: () async {
-                                    // Complete the session first to get rewards
+                                  onTap: () {
+                                    // Fire and forget (or at least parallelize) the completion
                                     if (_sessionId != null && _isRunning) {
-                                      // Calculate elapsed time before stopping
-                                      final elapsedSeconds =
-                                          (_initialDurationMinutes * 60) -
-                                          _totalSeconds;
-                                      if (elapsedSeconds > 0) {
-                                        // Only complete if there's actual time elapsed (at least 1 second)
-                                      }
-                                      // Force one last update before completing
-                                      await _updateBackendSession();
-                                      await _completeBackendSession();
+                                      // Force completion in background while we navigate
+                                      _completeBackendSession();
                                     }
                                     _stopTimer();
-                                    await _saveTimerState();
+                                    _saveTimerState();
                                     if (mounted) {
                                       Navigator.pushReplacementNamed(
                                         context,

@@ -18,28 +18,14 @@ const Users = () => {
     try {
       setLoading(true);
       const response = await usersAPI.getAll(page, 20);
-      // Mock data for development
-      const mockUsers = Array.from({ length: 20 }, (_, i) => ({
-        id: `user-${i + 1}`,
-        email: `user${i + 1}@example.com`,
-        name: `User ${i + 1}`,
-        avatar: null,
-        createdAt: new Date(Date.now() - Math.random() * 10000000000).toISOString(),
-      }));
-      setUsers(mockUsers);
-      setTotalPages(5);
+      if (response.data.success) {
+        setUsers(response.data.users);
+        setTotalPages(response.data.pagination?.pages || 1);
+      }
     } catch (error) {
       console.error('Error loading users:', error);
-      // Set mock data on error
-      const mockUsers = Array.from({ length: 20 }, (_, i) => ({
-        id: `user-${i + 1}`,
-        email: `user${i + 1}@example.com`,
-        name: `User ${i + 1}`,
-        avatar: null,
-        createdAt: new Date(Date.now() - Math.random() * 10000000000).toISOString(),
-      }));
-      setUsers(mockUsers);
-      setTotalPages(5);
+      setUsers([]);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }

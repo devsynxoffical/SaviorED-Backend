@@ -79,7 +79,7 @@ class BuildingCostConfig {
     'tower_master': 'tower_legendary',
 
     // Gates
-    // 'gate_basic': 'gate_legendary', // Removed illogical jump L1 -> L10
+    'gate_basic': 'gate_legendary',
     // Barracks
     'barracks_basic': 'barracks_complex',
     'barracks_complex': 'barracks_advanced',
