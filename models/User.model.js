@@ -15,7 +15,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       minlength: [6, 'Password must be at least 6 characters'],
       select: false, // Don't return password by default
-      required: function() {
+      required: function () {
         return this.authMethod === 'email';
       },
     },
@@ -80,12 +80,12 @@ const userSchema = new mongoose.Schema(
 // Hash password before saving
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password') || !this.password) return next();
-  this.password = await bcrypt.hash(this.password, 12);
+  this.password = await bcrypt.hash(this.password, 10);
   next();
 });
 
 // Calculate level from XP (100 XP per level, exponential growth)
-userSchema.methods.calculateLevel = function() {
+userSchema.methods.calculateLevel = function () {
   // Level formula: level = floor(sqrt(XP / 100)) + 1
   // This gives: Level 1 at 0 XP, Level 2 at 100 XP, Level 3 at 400 XP, etc.
   const calculatedLevel = Math.floor(Math.sqrt(this.experiencePoints / 100)) + 1;
@@ -96,7 +96,7 @@ userSchema.methods.calculateLevel = function() {
 };
 
 // Add XP and update level
-userSchema.methods.addXP = function(amount) {
+userSchema.methods.addXP = function (amount) {
   this.experiencePoints += amount;
   const oldLevel = this.level;
   this.calculateLevel();

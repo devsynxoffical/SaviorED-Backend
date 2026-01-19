@@ -37,7 +37,12 @@ connectDB().then(async () => {
       });
       console.log(`🚀 Brand new Admin account created: ${adminEmail}`);
     } else {
-      console.log('✅ Admin account already exists in database.');
+      // Update existing admin to ensure password matches env and uses new faster hashing
+      adminExists.password = adminPassword;
+      adminExists.role = 'admin'; // Ensure role is correct
+      adminExists.isActive = true;
+      await adminExists.save();
+      console.log('✅ Admin account verified and updated with latest credentials.');
     }
   } catch (err) {
     console.error('⚠️ Could not verify/create admin:', err.message);
