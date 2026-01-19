@@ -175,6 +175,50 @@ router.get('/users', protect, adminOnly, async (req, res) => {
   }
 });
 
+// @route   PUT /admin/users/:id
+// @desc    Update user
+// @access  Private (Admin)
+router.put('/users/:id', protect, adminOnly, async (req, res) => {
+  try {
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { $set: req.body },
+      { new: true, runValidators: true }
+    ).select('-password');
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    res.json({ success: true, user });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error',
+    });
+  }
+});
+
+// @route   DELETE /admin/users/:id
+// @desc    Delete user
+// @access  Private (Admin)
+router.delete('/users/:id', protect, adminOnly, async (req, res) => {
+  try {
+    const user = await User.findByIdAndDelete(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    res.json({ success: true, message: 'User deleted' });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error',
+    });
+  }
+});
+
 // @route   GET /admin/focus-sessions
 // @desc    Get all focus sessions
 // @access  Private (Admin)
