@@ -96,18 +96,30 @@ router.get('/profile', protect, adminOnly, async (req, res) => {
 // @access  Private (Admin)
 router.get('/dashboard/stats', protect, adminOnly, async (req, res) => {
   try {
-    const totalUsers = await User.countDocuments();
-    const activeUsers = await User.countDocuments({ isActive: true });
-    const totalSessions = await FocusSession.countDocuments();
-    const completedSessions = await FocusSession.countDocuments({ isCompleted: true });
+    const [
+      totalUsers,
+      activeUsers,
+      totalSessions,
+      completedSessions,
+      totalCastles,
+      totalTreasureChests,
+      focusHoursResult
+    ] = await Promise.all([
+      User.countDocuments(),
+      User.countDocuments({ isActive: true }),
+      FocusSession.countDocuments(),
+      FocusSession.countDocuments({ isCompleted: true }),
+      Castle.countDocuments(),
+      TreasureChest.countDocuments(),
+      FocusSession.aggregate([
+        { $match: { isCompleted: true } },
+        { $group: { _id: null, totalSeconds: { $sum: "$totalSeconds" } } }
+      ])
+    ]);
 
-    const sessions = await FocusSession.find({ isCompleted: true });
-    const totalFocusHours = sessions.reduce((sum, s) => {
-      return sum + (s.totalSeconds / 3600);
-    }, 0);
-
-    const totalCastles = await Castle.countDocuments();
-    const totalTreasureChests = await TreasureChest.countDocuments();
+    const totalFocusHours = focusHoursResult.length > 0
+      ? focusHoursResult[0].totalSeconds / 3600
+      : 0;
 
     res.json({
       success: true,

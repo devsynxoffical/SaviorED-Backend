@@ -77,6 +77,13 @@ const userSchema = new mongoose.Schema(
   }
 );
 
+// Indexes
+userSchema.index({ createdAt: -1 });
+userSchema.index({ totalFocusHours: -1 });
+userSchema.index({ experiencePoints: -1 });
+userSchema.index({ role: 1 });
+userSchema.index({ isActive: 1 });
+
 // Hash password before saving
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password') || !this.password) return next();
