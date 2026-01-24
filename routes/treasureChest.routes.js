@@ -20,6 +20,12 @@ const getChestRewards = async () => {
   };
 };
 
+// Helper to get dynamic unlock minutes
+const getChestUnlockMinutes = async () => {
+  const setting = await GlobalSetting.findOne({ key: 'CHEST_UNLOCK_MINUTES' });
+  return setting ? parseInt(setting.value) : 60;
+};
+
 // @route   GET /api/treasure-chests/my-chest
 // @desc    Get user's treasure chest and calculate dynamic progress
 // @access  Private
@@ -33,16 +39,19 @@ router.get('/my-chest', protect, async (req, res) => {
     let chest = await TreasureChest.findOne({ userId: req.user._id })
       .sort({ createdAt: -1 });
 
-    // 1. Calculate dynamic progress based on every 60 minutes
+    // 1. Get dynamic unlock interval (e.g. 60 mins)
+    const unlockMinutes = await getChestUnlockMinutes();
+
+    // 2. Calculate dynamic progress based on the interval
     const totalMinutes = (user.totalFocusHours || 0) * 60;
     const minutesInCurrentCycle = Math.max(0, totalMinutes - (user.lastClaimedFocusMinutes || 0));
 
-    // Progress capped at 60 minutes (100%)
-    const rawProgress = (minutesInCurrentCycle / 60) * 100;
+    // Progress capped at the dynamic limit (100%)
+    const rawProgress = (minutesInCurrentCycle / unlockMinutes) * 100;
     const progressPercentage = Math.min(Math.floor(rawProgress), 100);
     const isUnlocked = progressPercentage >= 100;
 
-    // 2. Create/Update chest state
+    // 3. Create/Update chest state
     if (!chest) {
       chest = await TreasureChest.create({
         userId: req.user._id,
@@ -53,7 +62,7 @@ router.get('/my-chest', protect, async (req, res) => {
     } else {
       // If the chest was claimed but we have enough minutes for a RELOAD (the cycle reset)
       // we reset the claimed flag.
-      if (chest.isClaimed && minutesInCurrentCycle < 60) {
+      if (chest.isClaimed && minutesInCurrentCycle < unlockMinutes) {
         // Stay claimed until they build up focus again or if we want to reset immediately
         // Let's keep it simple: progress shows current build-up.
       }
@@ -61,7 +70,7 @@ router.get('/my-chest', protect, async (req, res) => {
       chest.progressPercentage = progressPercentage;
       chest.isUnlocked = isUnlocked;
 
-      // Reset claim status if a new cycle is starting (minutes reset)
+      // Reset claim status if a new cycle is starting
       if (minutesInCurrentCycle < 1 && chest.isClaimed) {
         chest.isClaimed = false;
       }
@@ -79,7 +88,8 @@ router.get('/my-chest', protect, async (req, res) => {
         isClaimed: chest.isClaimed,
         totalMinutes: Math.floor(totalMinutes),
         minutesInCurrentCycle: Math.floor(minutesInCurrentCycle),
-        minutesRemaining: Math.max(0, 60 - Math.floor(minutesInCurrentCycle)),
+        unlockMinutes: unlockMinutes,
+        minutesRemaining: Math.max(0, unlockMinutes - Math.floor(minutesInCurrentCycle)),
       },
     });
   } catch (error) {
@@ -102,14 +112,17 @@ router.put('/claim', protect, async (req, res) => {
       return res.status(404).json({ success: false, message: 'Data not found' });
     }
 
-    // 1. Verify eligibility
+    // 1. Get dynamic unlock interval
+    const unlockMinutes = await getChestUnlockMinutes();
+
+    // 2. Verify eligibility
     const totalMinutes = (user.totalFocusHours || 0) * 60;
     const minutesInCurrentCycle = totalMinutes - (user.lastClaimedFocusMinutes || 0);
 
-    if (minutesInCurrentCycle < 60 && !chest.isUnlocked) {
+    if (minutesInCurrentCycle < unlockMinutes && !chest.isUnlocked) {
       return res.status(400).json({
         success: false,
-        message: 'Chest is still locked! Focus more to unlock.',
+        message: `Chest is still locked! Focus ${unlockMinutes} minutes to unlock.`,
       });
     }
 
@@ -120,10 +133,10 @@ router.put('/claim', protect, async (req, res) => {
       });
     }
 
-    // 2. Get Rewards from Admin Settings
+    // 3. Get Rewards from Admin Settings
     const rewards = await getChestRewards();
 
-    // 3. Apply rewards to Castle
+    // 4. Apply rewards to Castle
     let castle = await Castle.findOne({ userId: user._id });
     if (!castle) {
       castle = await Castle.create({ userId: user._id });
@@ -134,13 +147,12 @@ router.put('/claim', protect, async (req, res) => {
     castle.stones += rewards.stones;
     await castle.save();
 
-    // 4. Update User state (Reset the 60m cycle)
-    // We increment by 60 so if they focused 125 mins, they still have 5 mins progress left
-    user.lastClaimedFocusMinutes += 60;
+    // 5. Update User state (Reset the cycle by the exact unlock value)
+    user.lastClaimedFocusMinutes += unlockMinutes;
     user.totalCoins += rewards.coins; // Also track lifetime coins on user
     await user.save();
 
-    // 5. Update Chest model
+    // 6. Update Chest model
     chest.isClaimed = true;
     chest.claimedAt = new Date();
     chest.progressPercentage = 0; // Reset for visual feedback
