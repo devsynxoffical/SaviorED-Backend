@@ -47,6 +47,28 @@ connectDB().then(async () => {
   } catch (err) {
     console.error('⚠️ Could not verify/create admin:', err.message);
   }
+
+  // Initialize Default Global Settings
+  try {
+    const GlobalSetting = (await import('./models/GlobalSetting.model.js')).default;
+    const defaultSettings = [
+      { key: 'CHEST_UNLOCK_MINUTES', value: 60, description: 'Minutes of focus required to unlock a chest' },
+      { key: 'CHEST_REWARD_COINS', value: 150, description: 'Number of coins awarded from a chest' },
+      { key: 'CHEST_REWARD_WOOD', value: 50, description: 'Amount of wood awarded from a chest' },
+      { key: 'CHEST_REWARD_STONE', value: 25, description: 'Amount of stone awarded from a chest' },
+    ];
+
+    for (const setting of defaultSettings) {
+      const exists = await GlobalSetting.findOne({ key: setting.key });
+      if (!exists) {
+        await GlobalSetting.create(setting);
+        console.log(`🆕 Global Setting created: ${setting.key} = ${setting.value}`);
+      }
+    }
+    console.log('✅ Global settings verified and initialized.');
+  } catch (err) {
+    console.error('⚠️ Could not initialize global settings:', err.message);
+  }
 }).catch((error) => {
   console.error('Initial database connection failed, but server will continue:', error.message);
 });
