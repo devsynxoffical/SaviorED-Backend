@@ -538,52 +538,60 @@ router.get('/leaderboard/school', protect, adminOnly, async (req, res) => {
         pages: Math.ceil(total / limit),
       },
     });
-    // @route   GET /admin/settings
-    // @desc    Get all global settings
-    // @access  Private (Admin)
-    router.get('/settings', protect, adminOnly, async (req, res) => {
-      try {
-        const settings = await GlobalSetting.find();
-        res.json({ success: true, settings });
-      } catch (error) {
-        res.status(500).json({
-          success: false,
-          message: error.message || 'Server error',
-        });
-      }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error',
     });
+  }
+});
 
-    // @route   PUT /admin/settings/:key
-    // @desc    Update a global setting
-    // @access  Private (Admin)
-    router.put('/settings/:key', protect, adminOnly, async (req, res) => {
-      try {
-        const { key } = req.params;
-        const { value, description } = req.body;
-
-        let setting = await GlobalSetting.findOne({ key });
-        if (setting) {
-          setting.value = value;
-          if (description) setting.description = description;
-          setting.updatedBy = req.user._id;
-          await setting.save();
-        } else {
-          setting = await GlobalSetting.create({
-            key,
-            value,
-            description,
-            updatedBy: req.user._id
-          });
-        }
-
-        res.json({ success: true, setting });
-      } catch (error) {
-        res.status(500).json({
-          success: false,
-          message: error.message || 'Server error',
-        });
-      }
+// @route   GET /admin/settings
+// @desc    Get all global settings
+// @access  Private (Admin)
+router.get('/settings', protect, adminOnly, async (req, res) => {
+  try {
+    const settings = await GlobalSetting.find();
+    res.json({ success: true, settings });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error',
     });
+  }
+});
 
-    export default router;
+// @route   PUT /admin/settings/:key
+// @desc    Update a global setting
+// @access  Private (Admin)
+router.put('/settings/:key', protect, adminOnly, async (req, res) => {
+  try {
+    const { key } = req.params;
+    const { value, description } = req.body;
+
+    let setting = await GlobalSetting.findOne({ key });
+    if (setting) {
+      setting.value = value;
+      if (description) setting.description = description;
+      setting.updatedBy = req.user._id;
+      await setting.save();
+    } else {
+      setting = await GlobalSetting.create({
+        key,
+        value,
+        description,
+        updatedBy: req.user._id
+      });
+    }
+
+    res.json({ success: true, setting });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error',
+    });
+  }
+});
+
+export default router;
 
