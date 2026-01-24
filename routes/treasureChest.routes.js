@@ -1,5 +1,6 @@
 import express from 'express';
 import TreasureChest from '../models/TreasureChest.model.js';
+import User from '../models/User.model.js';
 import { protect } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
@@ -34,6 +35,13 @@ router.get('/my-chest', protect, async (req, res) => {
           },
         ],
       });
+    }
+
+    // SYNC LOGIC REMOVED: Chest progress is now independent of account-total focus hours
+    // to prevent overwriting specific chest progress with lifetime stats.
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
     }
 
     res.json({
@@ -85,7 +93,7 @@ router.put('/update-progress', protect, async (req, res) => {
     if (chest.progressPercentage >= 100 && !chest.isUnlocked) {
       chest.isUnlocked = true;
       chest.unlockedAt = new Date();
-      
+
       // Unlock all rewards
       chest.rewards.forEach(reward => {
         reward.isUnlocked = true;

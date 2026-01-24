@@ -59,16 +59,18 @@ router.get('/my-castle', protect, async (req, res) => {
 // @access  Private
 router.put('/layout', protect, async (req, res) => {
   try {
-    const { items, level } = req.body;
+    const { layout, items, level } = req.body;
 
     let castle = await Castle.findOne({ userId: req.user._id });
     if (!castle) {
       return res.status(404).json({ success: false, message: 'Castle not found' });
     }
 
-    castle.layout = items;
+    // Support both 'layout' (from Flutter) and 'items' (legacy/other)
+    castle.layout = layout || items || [];
     castle.markModified('layout');
-    // Optionally update level if provided (though level-up route handles logic better)
+
+    // Update level if provided
     if (level) castle.level = level;
 
     await castle.save();

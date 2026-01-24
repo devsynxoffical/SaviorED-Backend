@@ -191,29 +191,28 @@ router.put('/:id/complete', protect, async (req, res) => {
       await castle.save();
     }
 
-    // Update treasure chest progress (based on completed sessions)
+    // Update treasure chest progress using actual minutes
     const chest = await TreasureChest.findOne({ userId: req.user._id })
       .sort({ createdAt: -1 });
 
-    if (chest) {
-      // Progress increases by 5% per completed session, max 100%
-      const newProgress = Math.min(chest.progressPercentage + 5, 100);
+    if (chest && !chest.isClaimed) {
+      // Goal is 60 minutes (as requested)
+      const addedProgress = (minutes / 60) * 100;
+      const newProgress = Math.min(chest.progressPercentage + addedProgress, 100);
       chest.progressPercentage = newProgress;
 
-      // Unlock chest if progress reaches 100%
       if (newProgress >= 100 && !chest.isUnlocked) {
         chest.isUnlocked = true;
         chest.unlockedAt = new Date();
-
-        // Unlock all rewards
+        // Unlock rewards
         chest.rewards.forEach(reward => {
           reward.isUnlocked = true;
           reward.unlockedAt = new Date();
         });
       }
-
       await chest.save();
     }
+
 
     res.json({
       success: true,
