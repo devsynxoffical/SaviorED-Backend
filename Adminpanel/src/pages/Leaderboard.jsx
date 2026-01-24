@@ -1,37 +1,37 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { leaderboardAPI } from '../services/api';
 import DataTable from '../components/DataTable';
+import Modal from '../components/Modal';
 import './Leaderboard.css';
 
 const Leaderboard = () => {
-  const [entries, setEntries] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Page State
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
   const [type, setType] = useState('global');
 
-  useEffect(() => {
-    loadLeaderboard();
-  }, [page, type]);
+  // UI State
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
+  const [selectedEntry, setSelectedEntry] = useState(null);
 
-  const loadLeaderboard = async () => {
-    try {
-      setLoading(true);
+  // React Query for data fetching
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ['leaderboard', type, page],
+    queryFn: async () => {
       const response = type === 'global'
         ? await leaderboardAPI.getGlobal(page, 20)
         : await leaderboardAPI.getSchool(page, 20);
+      return response.data;
+    },
+    keepPreviousData: true,
+  });
 
-      if (response.data.success) {
-        setEntries(response.data.entries);
-        setTotalPages(response.data.pagination?.pages || 1);
-      }
-    } catch (error) {
-      console.error('Error loading leaderboard:', error);
-      setEntries([]);
-      setTotalPages(1);
-    } finally {
-      setLoading(false);
-    }
+  const entries = data?.entries || [];
+  const totalPages = data?.pagination?.pages || 1;
+  const loading = isLoading;
+
+  const handleRefresh = () => {
+    refetch();
   };
 
   const columns = [
@@ -80,7 +80,7 @@ const Leaderboard = () => {
           </select>
           <button
             className="refresh-btn"
-            onClick={loadLeaderboard}
+            onClick={handleRefresh}
           >
             Refresh
           </button>
@@ -92,11 +92,71 @@ const Leaderboard = () => {
         data={entries}
         loading={loading}
         actions={(row) => (
-          <button className="btn-view" onClick={() => alert(`View user ${row.userId}`)}>
+          <button
+            className="btn-view"
+            onClick={() => {
+              setSelectedEntry(row);
+              setProfileModalOpen(true);
+            }}
+          >
             View Profile
           </button>
         )}
       />
+
+      {/* Profile Modal */}
+      <Modal
+        isOpen={profileModalOpen}
+        onClose={() => {
+          setProfileModalOpen(false);
+          setSelectedEntry(null);
+        }}
+        title="User Profile"
+        size="medium"
+      >
+        {selectedEntry && (
+          <div className="user-details">
+            <div className="detail-row">
+              <span className="detail-label">User ID:</span>
+              <span className="detail-value">{selectedEntry.userId}</span>
+            </div>
+            <div className="detail-row">
+              <span className="detail-label">Name:</span>
+              <span className="detail-value">{selectedEntry.name || 'N/A'}</span>
+            </div>
+            <div className="detail-row">
+              <span className="detail-label">Rank:</span>
+              <span className="detail-value">#{selectedEntry.rank}</span>
+            </div>
+            <div className="detail-row">
+              <span className="detail-label">Level:</span>
+              <span className="detail-value">{selectedEntry.level || 'N/A'}</span>
+            </div>
+            <div className="detail-row">
+              <span className="detail-label">Coins:</span>
+              <span className="detail-value">💰 {selectedEntry.coins?.toLocaleString() || 0}</span>
+            </div>
+            <div className="detail-row">
+              <span className="detail-label">Progress:</span>
+              <span className="detail-value">
+                {selectedEntry.progressHours?.toFixed(1) || 0}h / {selectedEntry.progressMaxHours || 100}h
+              </span>
+            </div>
+            <div className="detail-row">
+              <span className="detail-label">Progress Percentage:</span>
+              <span className="detail-value">
+                {((selectedEntry.progressHours / selectedEntry.progressMaxHours) * 100 || 0).toFixed(1)}%
+              </span>
+            </div>
+            <div className="detail-row">
+              <span className="detail-label">Last Updated:</span>
+              <span className="detail-value">
+                {selectedEntry.updatedAt ? new Date(selectedEntry.updatedAt).toLocaleString() : 'N/A'}
+              </span>
+            </div>
+          </div>
+        )}
+      </Modal>
 
       <div className="pagination">
         <button

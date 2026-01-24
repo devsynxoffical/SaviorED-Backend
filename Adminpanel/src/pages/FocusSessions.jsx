@@ -1,32 +1,53 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { focusSessionsAPI } from '../services/api';
 import DataTable from '../components/DataTable';
+import Modal from '../components/Modal';
+import ConfirmModal from '../components/ConfirmModal';
 import './FocusSessions.css';
 
 const FocusSessions = () => {
-  const [sessions, setSessions] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Page State
   const [page, setPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
 
-  useEffect(() => {
-    loadSessions();
-  }, [page]);
+  // UI State
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [selectedSession, setSelectedSession] = useState(null);
 
-  const loadSessions = async () => {
-    try {
-      setLoading(true);
+  // React Query for data fetching
+  const { data, isLoading } = useQuery({
+    queryKey: ['focusSessions', page],
+    queryFn: async () => {
       const response = await focusSessionsAPI.getAll(page, 20);
-      if (response.data.success) {
-        setSessions(response.data.sessions);
-        setTotalPages(response.data.pagination?.pages || 1);
-      }
-    } catch (error) {
-      console.error('Error loading sessions:', error);
-      setSessions([]);
-      setTotalPages(1);
-    } finally {
-      setLoading(false);
+      return response.data;
+    },
+    keepPreviousData: true,
+  });
+
+  const sessions = data?.sessions || [];
+  const totalPages = data?.pagination?.pages || 1;
+  const loading = isLoading;
+
+  // React Query for mutations
+  const queryClient = useQueryClient();
+
+  const deleteMutation = useMutation({
+    mutationFn: () => focusSessionsAPI.delete(selectedSession.id || selectedSession._id),
+    onSuccess: () => {
+      queryClient.invalidateQueries(['focusSessions']);
+      setDeleteModalOpen(false);
+      setSelectedSession(null);
+    },
+    onError: (error) => {
+      console.error('Error deleting session:', error);
+      alert('Failed to delete session');
+    }
+  });
+
+  const handleDeleteConfirm = () => {
+    if (selectedSession) {
+      deleteMutation.mutate();
     }
   };
 
@@ -37,8 +58,21 @@ const FocusSessions = () => {
   };
 
   const columns = [
-    { key: 'id', label: 'Session ID' },
-    { key: 'userId', label: 'User ID' },
+    {
+      key: 'id',
+      label: 'Session ID',
+      render: (value, row) => row.id || row._id || '-'
+    },
+    {
+      key: 'userId',
+      label: 'User',
+      render: (value) => {
+        if (typeof value === 'object' && value !== null) {
+          return value.name || value.email || value._id || JSON.stringify(value);
+        }
+        return value;
+      }
+    },
     {
       key: 'durationMinutes',
       label: 'Duration',
@@ -83,14 +117,93 @@ const FocusSessions = () => {
         loading={loading}
         actions={(row) => (
           <>
-            <button className="btn-view" onClick={() => alert(`View session ${row.id}`)}>
+            <button className="btn-view" onClick={() => {
+              setSelectedSession(row);
+              setViewModalOpen(true);
+            }}>
               View
             </button>
-            <button className="btn-delete" onClick={() => alert(`Delete session ${row.id}`)}>
+            <button className="btn-delete" onClick={() => {
+              setSelectedSession(row);
+              setDeleteModalOpen(true);
+            }}>
               Delete
             </button>
           </>
         )}
+      />
+
+      {/* View Modal */}
+      <Modal
+        isOpen={viewModalOpen}
+        onClose={() => {
+          setViewModalOpen(false);
+          setSelectedSession(null);
+        }}
+        title="Session Details"
+        size="medium"
+      >
+        {selectedSession && (
+          <div className="user-details">
+            <div className="detail-row">
+              <span className="detail-label">Session ID:</span>
+              <span className="detail-value">{selectedSession.id || selectedSession._id}</span>
+            </div>
+            <div className="detail-row">
+              <span className="detail-label">User:</span>
+              <span className="detail-value">
+                {selectedSession.userId?.name || selectedSession.userId?.email || selectedSession.userId || 'N/A'}
+              </span>
+            </div>
+            <div className="detail-row">
+              <span className="detail-label">Duration:</span>
+              <span className="detail-value">{formatDuration(selectedSession.totalSeconds)}</span>
+            </div>
+            <div className="detail-row">
+              <span className="detail-label">Status:</span>
+              <span className="detail-value">
+                <span className={`status-badge ${selectedSession.isCompleted ? 'completed' : 'incomplete'}`}>
+                  {selectedSession.isCompleted ? 'Completed' : 'Incomplete'}
+                </span>
+              </span>
+            </div>
+            <div className="detail-row">
+              <span className="detail-label">Rewards:</span>
+              <span className="detail-value">
+                💰 {selectedSession.earnedCoins || 0} |
+                🪨 {selectedSession.earnedStones || 0} |
+                🪵 {selectedSession.earnedWood || 0}
+              </span>
+            </div>
+            <div className="detail-row">
+              <span className="detail-label">Start Time:</span>
+              <span className="detail-value">
+                {selectedSession.startTime ? new Date(selectedSession.startTime).toLocaleString() : 'N/A'}
+              </span>
+            </div>
+            <div className="detail-row">
+              <span className="detail-label">End Time:</span>
+              <span className="detail-value">
+                {selectedSession.endTime ? new Date(selectedSession.endTime).toLocaleString() : 'N/A'}
+              </span>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteModalOpen}
+        onClose={() => {
+          setDeleteModalOpen(false);
+          setSelectedSession(null);
+        }}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Session"
+        message={`Are you sure you want to delete session ${selectedSession?.id || ''}? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        type="danger"
       />
 
       <div className="pagination">

@@ -1,5 +1,70 @@
 .castle-grounds-page {
   max-width: 1400px;
+  margin: 0 auto;
+}
+
+.castle-grounds-page .page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 20px 24px;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  border: 2px solid rgba(26, 71, 42, 0.1);
+}
+
+.castle-grounds-page .page-header h2 {
+  margin: 0;
+  font-size: 24px;
+  color: #1a472a;
+  font-weight: 600;
+  font-family: 'Cinzel', serif;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.castle-grounds-page .pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin-top: 24px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  border: 2px solid rgba(26, 71, 42, 0.1);
+}
+
+.castle-grounds-page .pagination button {
+  padding: 10px 20px;
+  border: 2px solid rgba(26, 71, 42, 0.2);
+  background: linear-gradient(135deg, #1a472a 0%, #2d5a3d 100%);
+  color: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.castle-grounds-page .pagination button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(26, 71, 42, 0.4);
+}
+
+.castle-grounds-page .pagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.castle-grounds-page .pagination span {
+  font-size: 14px;
+  color: #1a472a;
+  font-weight: 600;
 }
 
 .resources-cell {
@@ -42,3 +107,90 @@
   z-index: 1;
 }
 
+.user-details {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.detail-row {
+  display: flex;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.detail-row:last-child {
+  border-bottom: none;
+}
+
+.detail-label {
+  font-weight: 600;
+  color: #1a472a;
+  min-width: 120px;
+  font-size: 14px;
+}
+
+.detail-value {
+  color: #374151;
+  font-size: 14px;
+  flex: 1;
+}
+
+.edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  font-weight: 600;
+  color: #1a472a;
+  font-size: 14px;
+}
+
+.form-input {
+  padding: 12px 16px;
+  border: 2px solid rgba(26, 71, 42, 0.2);
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  transition: all 0.3s;
+  background: #fff;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #1a472a;
+  box-shadow: 0 0 0 3px rgba(26, 71, 42, 0.1);
+}
+
+@media (max-width: 768px) {
+  .castle-grounds-page .page-header {
+    padding: 15px;
+    text-align: center;
+    justify-content: center;
+  }
+
+  .castle-grounds-page .page-header h2 {
+    font-size: 18px;
+    letter-spacing: 1px;
+  }
+
+  .castle-grounds-page .pagination {
+    flex-direction: column;
+    gap: 12px;
+    padding: 12px;
+  }
+
+  .castle-grounds-page .pagination button {
+    width: 100%;
+    padding: 12px;
+  }
+}
