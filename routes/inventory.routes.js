@@ -6,6 +6,89 @@ import { protect } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
+// @route   POST /api/inventory/buy
+// @desc    Buy an item from the shop
+// @access  Private
+router.post(
+  '/buy',
+  protect,
+  [
+    body('itemId').notEmpty().withMessage('Item ID is required'),
+    body('quantity').optional().isInt({ min: 1 }).withMessage('Quantity must be at least 1'),
+  ],
+  async (req, res) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return res.status(400).json({
+          success: false,
+          errors: errors.array(),
+        });
+      }
+
+      const { itemId, quantity = 1 } = req.body;
+
+      // 1. Get Item Template
+      const template = await ItemTemplate.findOne({ itemId });
+      if (!template) {
+        return res.status(404).json({ success: false, message: 'Item not found' });
+      }
+
+      if (!template.buyable) {
+        return res.status(400).json({ success: false, message: 'Item cannot be purchased' });
+      }
+
+      // 2. Check Costs
+      const totalCost = (template.buyPrice || 0) * quantity;
+      const castle = await Castle.findOne({ userId: req.user._id });
+
+      if (!castle) {
+        return res.status(404).json({ success: false, message: 'Castle not found' });
+      }
+
+      if ((castle.coins || 0) < totalCost) {
+        return res.status(400).json({
+          success: false,
+          message: `Not enough coins. Required: ${totalCost}, Have: ${castle.coins}`
+        });
+      }
+
+      // 3. Deduct Coins
+      castle.coins -= totalCost;
+      await castle.save();
+
+      // 4. Add Item to Inventory
+      let userItem = await UserItem.findOne({ userId: req.user._id, itemId });
+      if (userItem) {
+        userItem.quantity += quantity;
+        await userItem.save();
+      } else {
+        userItem = await UserItem.create({
+          userId: req.user._id,
+          itemId,
+          quantity,
+          obtainedAt: new Date(),
+        });
+      }
+
+      res.json({
+        success: true,
+        message: `Successfully purchased ${quantity} x ${template.name}`,
+        remainingCoins: castle.coins,
+        item: {
+          itemId: userItem.itemId,
+          quantity: userItem.quantity,
+          name: template.name
+        }
+      });
+
+    } catch (error) {
+      console.error('Buy Item Error:', error);
+      res.status(500).json({ success: false, message: 'Server error processing purchase' });
+    }
+  }
+);
+
 // @route   GET /api/inventory
 // @desc    Get user's inventory
 // @access  Private
