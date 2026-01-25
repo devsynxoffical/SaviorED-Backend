@@ -50,12 +50,21 @@ const Dashboard = () => {
     }
   }, [settingsData]);
 
+  const [isUpdating, setIsUpdating] = useState(null); // Key being updated
+
   const updateSettingMutation = useMutation({
     mutationFn: async ({ key, value }) => {
       return await settingsAPI.update(key, { value });
     },
-    onSuccess: () => {
+    onSuccess: (data, variables) => {
       queryClient.invalidateQueries(['admin', 'settings']);
+      setIsUpdating(null);
+      alert(`Setting ${variables.key} updated successfully!`);
+    },
+    onError: (error) => {
+      console.error('Update failed:', error);
+      setIsUpdating(null);
+      alert(`Failed to update setting: ${error.response?.data?.message || error.message}`);
     }
   });
 
@@ -64,7 +73,13 @@ const Dashboard = () => {
   };
 
   const saveSetting = (key) => {
-    updateSettingMutation.mutate({ key, value: chestSettings[key] });
+    const value = parseFloat(chestSettings[key]);
+    if (isNaN(value)) {
+      alert('Please enter a valid number');
+      return;
+    }
+    setIsUpdating(key);
+    updateSettingMutation.mutate({ key, value });
   };
 
   const { data: activityData } = useQuery({
@@ -287,7 +302,12 @@ const Dashboard = () => {
                     value={chestSettings.CHEST_UNLOCK_MINUTES}
                     onChange={(e) => handleSettingChange('CHEST_UNLOCK_MINUTES', e.target.value)}
                   />
-                  <button onClick={() => saveSetting('CHEST_UNLOCK_MINUTES')}>SET</button>
+                  <button
+                    disabled={isUpdating !== null}
+                    onClick={() => saveSetting('CHEST_UNLOCK_MINUTES')}
+                  >
+                    {isUpdating === 'CHEST_UNLOCK_MINUTES' ? '...' : 'SET'}
+                  </button>
                 </div>
               </div>
 
@@ -299,7 +319,12 @@ const Dashboard = () => {
                     value={chestSettings.CHEST_REWARD_COINS}
                     onChange={(e) => handleSettingChange('CHEST_REWARD_COINS', e.target.value)}
                   />
-                  <button onClick={() => saveSetting('CHEST_REWARD_COINS')}>SET</button>
+                  <button
+                    disabled={isUpdating !== null}
+                    onClick={() => saveSetting('CHEST_REWARD_COINS')}
+                  >
+                    {isUpdating === 'CHEST_REWARD_COINS' ? '...' : 'SET'}
+                  </button>
                 </div>
               </div>
 
@@ -311,7 +336,12 @@ const Dashboard = () => {
                     value={chestSettings.CHEST_REWARD_WOOD}
                     onChange={(e) => handleSettingChange('CHEST_REWARD_WOOD', e.target.value)}
                   />
-                  <button onClick={() => saveSetting('CHEST_REWARD_WOOD')}>SET</button>
+                  <button
+                    disabled={isUpdating !== null}
+                    onClick={() => saveSetting('CHEST_REWARD_WOOD')}
+                  >
+                    {isUpdating === 'CHEST_REWARD_WOOD' ? '...' : 'SET'}
+                  </button>
                 </div>
               </div>
 
@@ -323,7 +353,12 @@ const Dashboard = () => {
                     value={chestSettings.CHEST_REWARD_STONE}
                     onChange={(e) => handleSettingChange('CHEST_REWARD_STONE', e.target.value)}
                   />
-                  <button onClick={() => saveSetting('CHEST_REWARD_STONE')}>SET</button>
+                  <button
+                    disabled={isUpdating !== null}
+                    onClick={() => saveSetting('CHEST_REWARD_STONE')}
+                  >
+                    {isUpdating === 'CHEST_REWARD_STONE' ? '...' : 'SET'}
+                  </button>
                 </div>
               </div>
             </div>

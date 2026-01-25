@@ -4,6 +4,7 @@ import User from '../models/User.model.js';
 import FocusSession from '../models/FocusSession.model.js';
 import Castle from '../models/Castle.model.js';
 import TreasureChest from '../models/TreasureChest.model.js';
+import GlobalSetting from '../models/GlobalSetting.model.js';
 import generateToken from '../utils/generateToken.js';
 import { protect, adminOnly } from '../middleware/auth.middleware.js';
 
@@ -96,18 +97,30 @@ router.get('/profile', protect, adminOnly, async (req, res) => {
 // @access  Private (Admin)
 router.get('/dashboard/stats', protect, adminOnly, async (req, res) => {
   try {
-    const totalUsers = await User.countDocuments();
-    const activeUsers = await User.countDocuments({ isActive: true });
-    const totalSessions = await FocusSession.countDocuments();
-    const completedSessions = await FocusSession.countDocuments({ isCompleted: true });
-    
-    const sessions = await FocusSession.find({ isCompleted: true });
-    const totalFocusHours = sessions.reduce((sum, s) => {
-      return sum + (s.totalSeconds / 3600);
-    }, 0);
+    const [
+      totalUsers,
+      activeUsers,
+      totalSessions,
+      completedSessions,
+      totalCastles,
+      totalTreasureChests,
+      focusHoursResult
+    ] = await Promise.all([
+      User.countDocuments(),
+      User.countDocuments({ isActive: true }),
+      FocusSession.countDocuments(),
+      FocusSession.countDocuments({ isCompleted: true }),
+      Castle.countDocuments(),
+      TreasureChest.countDocuments(),
+      FocusSession.aggregate([
+        { $match: { isCompleted: true } },
+        { $group: { _id: null, totalSeconds: { $sum: "$totalSeconds" } } }
+      ])
+    ]);
 
-    const totalCastles = await Castle.countDocuments();
-    const totalTreasureChests = await TreasureChest.countDocuments();
+    const totalFocusHours = focusHoursResult.length > 0
+      ? focusHoursResult[0].totalSeconds / 3600
+      : 0;
 
     res.json({
       success: true,
@@ -163,6 +176,50 @@ router.get('/users', protect, adminOnly, async (req, res) => {
   }
 });
 
+// @route   PUT /admin/users/:id
+// @desc    Update user
+// @access  Private (Admin)
+router.put('/users/:id', protect, adminOnly, async (req, res) => {
+  try {
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { $set: req.body },
+      { new: true, runValidators: true }
+    ).select('-password');
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    res.json({ success: true, user });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error',
+    });
+  }
+});
+
+// @route   DELETE /admin/users/:id
+// @desc    Delete user
+// @access  Private (Admin)
+router.delete('/users/:id', protect, adminOnly, async (req, res) => {
+  try {
+    const user = await User.findByIdAndDelete(req.params.id);
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    res.json({ success: true, message: 'User deleted' });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error',
+    });
+  }
+});
+
 // @route   GET /admin/focus-sessions
 // @desc    Get all focus sessions
 // @access  Private (Admin)
@@ -190,6 +247,24 @@ router.get('/focus-sessions', protect, adminOnly, async (req, res) => {
         pages: Math.ceil(total / limit),
       },
     });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error',
+    });
+  }
+});
+
+// @route   DELETE /admin/focus-sessions/:id
+// @desc    Delete focus session
+// @access  Private (Admin)
+router.delete('/focus-sessions/:id', protect, adminOnly, async (req, res) => {
+  try {
+    const session = await FocusSession.findByIdAndDelete(req.params.id);
+    if (!session) {
+      return res.status(404).json({ success: false, message: 'Session not found' });
+    }
+    res.json({ success: true, message: 'Session deleted' });
   } catch (error) {
     res.status(500).json({
       success: false,
@@ -233,6 +308,28 @@ router.get('/castle-grounds', protect, adminOnly, async (req, res) => {
   }
 });
 
+// @route   PUT /admin/castle-grounds/:id
+// @desc    Update castle
+// @access  Private (Admin)
+router.put('/castle-grounds/:id', protect, adminOnly, async (req, res) => {
+  try {
+    const castle = await Castle.findByIdAndUpdate(
+      req.params.id,
+      { $set: req.body },
+      { new: true, runValidators: true }
+    );
+    if (!castle) {
+      return res.status(404).json({ success: false, message: 'Castle not found' });
+    }
+    res.json({ success: true, castle });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error',
+    });
+  }
+});
+
 // @route   GET /admin/treasure-chests
 // @desc    Get all treasure chests
 // @access  Private (Admin)
@@ -260,6 +357,234 @@ router.get('/treasure-chests', protect, adminOnly, async (req, res) => {
         pages: Math.ceil(total / limit),
       },
     });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error',
+    });
+  }
+});
+
+// @route   PUT /admin/treasure-chests/:id
+// @desc    Update treasure chest
+// @access  Private (Admin)
+router.put('/treasure-chests/:id', protect, adminOnly, async (req, res) => {
+  try {
+    const chest = await TreasureChest.findByIdAndUpdate(
+      req.params.id,
+      { $set: req.body },
+      { new: true, runValidators: true }
+    );
+    if (!chest) {
+      return res.status(404).json({ success: false, message: 'Chest not found' });
+    }
+    res.json({ success: true, chest });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error',
+    });
+  }
+});
+
+// @route   GET /admin/treasure-chests/stats
+// @desc    Get treasure chest stats
+// @access  Private (Admin)
+router.get('/treasure-chests/stats', protect, adminOnly, async (req, res) => {
+  try {
+    const totalChests = await TreasureChest.countDocuments();
+    const unlockedChests = await TreasureChest.countDocuments({ isUnlocked: true });
+    const claimedChests = await TreasureChest.countDocuments({ isClaimed: true });
+
+    res.json({
+      success: true,
+      stats: {
+        total: totalChests,
+        unlocked: unlockedChests,
+        claimed: claimedChests,
+        locked: totalChests - unlockedChests
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error',
+    });
+  }
+});
+
+// @route   GET /admin/dashboard/activity
+// @desc    Get recent activity
+// @access  Private (Admin)
+router.get('/dashboard/activity', protect, adminOnly, async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 10;
+
+    // Get recent completed sessions as activity
+    const activities = await FocusSession.find({ isCompleted: true })
+      .populate('userId', 'name email avatar')
+      .sort({ createdAt: -1 })
+      .limit(limit);
+
+    res.json({
+      success: true,
+      activities: activities.map(session => ({
+        id: session._id,
+        user: session.userId?.name || 'Unknown User',
+        userAvatar: session.userId?.avatar,
+        action: 'completed a focus session',
+        details: `${Math.round(session.totalSeconds / 60)} minutes`,
+        time: session.createdAt,
+      })),
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error',
+    });
+  }
+});
+
+// @route   GET /admin/leaderboard/global
+// @desc    Get global leaderboard for admin
+// @access  Private (Admin)
+router.get('/leaderboard/global', protect, adminOnly, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    // Rank by totalFocusHours (descending)
+    const users = await User.find()
+      .sort({ totalFocusHours: -1 })
+      .skip(skip)
+      .limit(limit)
+      .select('name email avatar level totalFocusHours totalCoins experiencePoints updatedAt');
+
+    const total = await User.countDocuments();
+
+    // Map to expected format
+    const entries = users.map((user, index) => ({
+      id: user._id,
+      rank: skip + index + 1,
+      userId: user._id,
+      name: user.name,
+      email: user.email,
+      avatar: user.avatar,
+      level: user.level,
+      coins: user.totalCoins,
+      progressHours: user.totalFocusHours,
+      progressMaxHours: 100, // Example max for progress bar
+      updatedAt: user.updatedAt,
+    }));
+
+    res.json({
+      success: true,
+      entries,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error',
+    });
+  }
+});
+
+// @route   GET /admin/leaderboard/school
+// @desc    Get school leaderboard for admin (Placeholder logic: Rank by XP)
+// @access  Private (Admin)
+router.get('/leaderboard/school', protect, adminOnly, async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    // Rank by experiencePoints (descending) as proxy for "School/Academic" rank
+    const users = await User.find()
+      .sort({ experiencePoints: -1 })
+      .skip(skip)
+      .limit(limit)
+      .select('name email avatar level totalFocusHours totalCoins experiencePoints updatedAt');
+
+    const total = await User.countDocuments();
+
+    const entries = users.map((user, index) => ({
+      id: user._id,
+      rank: skip + index + 1,
+      userId: user._id,
+      name: user.name,
+      email: user.email,
+      avatar: user.avatar,
+      level: user.level,
+      coins: user.totalCoins,
+      progressHours: user.totalFocusHours,
+      progressMaxHours: 100,
+      updatedAt: user.updatedAt,
+    }));
+
+    res.json({
+      success: true,
+      entries,
+      pagination: {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error',
+    });
+  }
+});
+
+// @route   GET /admin/settings
+// @desc    Get all global settings
+// @access  Private (Admin)
+router.get('/settings', protect, adminOnly, async (req, res) => {
+  try {
+    const settings = await GlobalSetting.find();
+    res.json({ success: true, settings });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Server error',
+    });
+  }
+});
+
+// @route   PUT /admin/settings/:key
+// @desc    Update a global setting
+// @access  Private (Admin)
+router.put('/settings/:key', protect, adminOnly, async (req, res) => {
+  try {
+    const { key } = req.params;
+    const { value, description } = req.body;
+
+    let setting = await GlobalSetting.findOne({ key });
+    if (setting) {
+      setting.value = value;
+      if (description) setting.description = description;
+      setting.updatedBy = req.user._id;
+      await setting.save();
+    } else {
+      setting = await GlobalSetting.create({
+        key,
+        value,
+        description,
+        updatedBy: req.user._id
+      });
+    }
+
+    res.json({ success: true, setting });
   } catch (error) {
     res.status(500).json({
       success: false,

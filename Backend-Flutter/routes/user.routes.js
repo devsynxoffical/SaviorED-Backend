@@ -11,7 +11,7 @@ const router = express.Router();
 router.get('/profile', protect, async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
-    
+
     res.json({
       success: true,
       user: {
@@ -43,7 +43,7 @@ router.put(
   protect,
   [
     body('name').optional().trim(),
-    body('avatar').optional().isURL(),
+    body('avatar').optional(),
   ],
   async (req, res) => {
     try {
@@ -91,7 +91,7 @@ router.put(
 router.get('/:id', protect, async (req, res) => {
   try {
     const user = await User.findById(req.params.id).select('-password');
-    
+
     if (!user) {
       return res.status(404).json({
         success: false,

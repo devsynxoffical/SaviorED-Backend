@@ -59,57 +59,73 @@ const castleSchema = new mongoose.Schema(
       isFlipped: Boolean,
       placedAt: Date,
     }],
+    // Unplaced buildings (purchased but not on map)
+    inventory: {
+      type: Map,
+      of: Number,
+      default: {},
+    },
   },
   {
     timestamps: true,
   }
 );
 
+// Index for efficient queries
+castleSchema.index({ userId: 1 });
+castleSchema.index({ createdAt: -1 });
+
 // Calculate progress percentage
 castleSchema.methods.calculateProgress = function () {
-  const { coins, stones, wood } = this;
-  const { coins: reqCoins, stones: reqStones, wood: reqWood } = this.levelRequirements;
-  
-  const coinProgress = Math.min((coins / reqCoins) * 100, 100);
-  const stoneProgress = Math.min((stones / reqStones) * 100, 100);
-  const woodProgress = Math.min((wood / reqWood) * 100, 100);
-  
-  this.progressPercentage = (coinProgress + stoneProgress + woodProgress) / 3;
+  // DEPRECATED: Progress is now driven by Inventory/Building completion, calculated by client.
+  // const { coins, stones, wood } = this;
+  // const { coins: reqCoins, stones: reqStones, wood: reqWood } = this.levelRequirements;
+
+  // const coinProgress = Math.min((coins / reqCoins) * 100, 100);
+  // const stoneProgress = Math.min((stones / reqStones) * 100, 100);
+  // const woodProgress = Math.min((wood / reqWood) * 100, 100);
+
+  // this.progressPercentage = (coinProgress + stoneProgress + woodProgress) / 3;
   return this.progressPercentage;
 };
 
 // Check if user can level up
 castleSchema.methods.canLevelUp = function () {
-  const { coins, stones, wood } = this;
-  const { coins: reqCoins, stones: reqStones, wood: reqWood } = this.levelRequirements;
-  
-  return coins >= reqCoins && stones >= reqStones && wood >= reqWood;
+  // Progression is now based on building completion, not resource accumulation
+  // Resources are spent on the buildings themselves
+  return true;
 };
 
 // Level up
 castleSchema.methods.levelUp = function () {
-  if (!this.canLevelUp()) {
-    throw new Error('Cannot level up: insufficient resources');
-  }
-  
-  const { coins, stones, wood } = this;
-  const { coins: reqCoins, stones: reqStones, wood: reqWood } = this.levelRequirements;
-  
-  this.coins -= reqCoins;
-  this.stones -= reqStones;
-  this.wood -= reqWood;
+  // if (!this.canLevelUp()) {
+  //   throw new Error('Cannot level up: insufficient resources');
+  // }
+
+  // Resources were already spent on buildings
+  // const { coins, stones, wood } = this;
+  // const { coins: reqCoins, stones: reqStones, wood: reqWood } = this.levelRequirements;
+
+  // this.coins -= reqCoins;
+  // this.stones -= reqStones;
+  // this.wood -= reqWood;
+
+  const reqCoins = this.levelRequirements.coins;
+  const reqStones = this.levelRequirements.stones;
+  const reqWood = this.levelRequirements.wood;
+
   this.level += 1;
   this.nextLevel = this.level + 1;
   this.levelName = `LEVEL ${this.level}`;
-  
+
   // Update requirements for next level (increase by 20% each level)
   this.levelRequirements = {
     coins: Math.floor(reqCoins * 1.2),
     stones: Math.floor(reqStones * 1.2),
     wood: Math.floor(reqWood * 1.2),
   };
-  
-  this.calculateProgress();
+
+  // this.calculateProgress();
   return this;
 };
 

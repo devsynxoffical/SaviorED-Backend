@@ -17,8 +17,59 @@ import adminRoutes from './routes/admin.routes.js';
 // Load environment variables
 dotenv.config();
 
-// Connect to database (non-blocking - server will start even if DB connection fails)
-connectDB().catch((error) => {
+// Connect to database
+connectDB().then(async () => {
+  console.log('✅ Database connected. Checking admin status...');
+  try {
+    const User = (await import('./models/User.model.js')).default;
+    const adminEmail = process.env.ADMIN_EMAIL || 'admin@saviored.com';
+    const adminPassword = process.env.ADMIN_PASSWORD || 'ChangeThisPassword123!';
+
+    const adminExists = await User.findOne({ email: adminEmail });
+    if (!adminExists) {
+      await User.create({
+        email: adminEmail,
+        password: adminPassword,
+        name: 'Admin User',
+        role: 'admin',
+        authMethod: 'email',
+        isActive: true
+      });
+      console.log(`🚀 Brand new Admin account created: ${adminEmail}`);
+    } else {
+      // Update existing admin to ensure password matches env and uses new faster hashing
+      adminExists.password = adminPassword;
+      adminExists.role = 'admin'; // Ensure role is correct
+      adminExists.isActive = true;
+      await adminExists.save();
+      console.log('✅ Admin account verified and updated with latest credentials.');
+    }
+  } catch (err) {
+    console.error('⚠️ Could not verify/create admin:', err.message);
+  }
+
+  // Initialize Default Global Settings
+  try {
+    const GlobalSetting = (await import('./models/GlobalSetting.model.js')).default;
+    const defaultSettings = [
+      { key: 'CHEST_UNLOCK_MINUTES', value: 60, description: 'Minutes of focus required to unlock a chest' },
+      { key: 'CHEST_REWARD_COINS', value: 150, description: 'Number of coins awarded from a chest' },
+      { key: 'CHEST_REWARD_WOOD', value: 50, description: 'Amount of wood awarded from a chest' },
+      { key: 'CHEST_REWARD_STONE', value: 25, description: 'Amount of stone awarded from a chest' },
+    ];
+
+    for (const setting of defaultSettings) {
+      const exists = await GlobalSetting.findOne({ key: setting.key });
+      if (!exists) {
+        await GlobalSetting.create(setting);
+        console.log(`🆕 Global Setting created: ${setting.key} = ${setting.value}`);
+      }
+    }
+    console.log('✅ Global settings verified and initialized.');
+  } catch (err) {
+    console.error('⚠️ Could not initialize global settings:', err.message);
+  }
+}).catch((error) => {
   console.error('Initial database connection failed, but server will continue:', error.message);
 });
 
@@ -28,26 +79,13 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-const allowedOrigins = process.env.FRONTEND_URL
-  ? process.env.FRONTEND_URL.split(',').map(o => o.trim())
-  : ['*'];
-
 app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps)
-    if (!origin) return callback(null, true);
-
-    if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.warn(`CORS blocked for origin: ${origin}`);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
+  origin: true, // This echoes the request origin and is the best way to handle credentials: true
   credentials: true,
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use('/uploads', express.static('uploads'));
 app.use(passport.initialize());
 
 // Root route for Railway health checks

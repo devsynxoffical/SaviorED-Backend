@@ -1,39 +1,81 @@
 import express from 'express';
 import TreasureChest from '../models/TreasureChest.model.js';
+import User from '../models/User.model.js';
+import Castle from '../models/Castle.model.js';
+import GlobalSetting from '../models/GlobalSetting.model.js';
 import { protect } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
+// Helper to get admin configured rewards
+const getChestRewards = async () => {
+  const coinSetting = await GlobalSetting.findOne({ key: 'CHEST_REWARD_COINS' });
+  const woodSetting = await GlobalSetting.findOne({ key: 'CHEST_REWARD_WOOD' });
+  const stoneSetting = await GlobalSetting.findOne({ key: 'CHEST_REWARD_STONE' });
+
+  return {
+    coins: coinSetting ? parseInt(coinSetting.value) : 150,
+    wood: woodSetting ? parseInt(woodSetting.value) : 50,
+    stones: stoneSetting ? parseInt(stoneSetting.value) : 25,
+  };
+};
+
+// Helper to get dynamic unlock minutes
+const getChestUnlockMinutes = async () => {
+  const setting = await GlobalSetting.findOne({ key: 'CHEST_UNLOCK_MINUTES' });
+  return setting ? parseInt(setting.value) : 60;
+};
+
 // @route   GET /api/treasure-chests/my-chest
-// @desc    Get user's treasure chest
+// @desc    Get user's treasure chest and calculate dynamic progress
 // @access  Private
 router.get('/my-chest', protect, async (req, res) => {
   try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
     let chest = await TreasureChest.findOne({ userId: req.user._id })
       .sort({ createdAt: -1 });
 
-    // Create chest if it doesn't exist
+    // 1. Get dynamic unlock interval (e.g. 60 mins)
+    const unlockMinutes = await getChestUnlockMinutes();
+
+    // 2. Calculate dynamic progress based on the interval
+    const totalMinutes = (user.totalFocusHours || 0) * 60;
+    const minutesInCurrentCycle = Math.max(0, totalMinutes - (user.lastClaimedFocusMinutes || 0));
+
+    // Progress capped at the dynamic limit (100%)
+    const rawProgress = (minutesInCurrentCycle / unlockMinutes) * 100;
+    const progressPercentage = Math.min(Math.floor(rawProgress), 100);
+    const isUnlocked = progressPercentage >= 100;
+
+    // 3. Create/Update chest state
     if (!chest) {
       chest = await TreasureChest.create({
         userId: req.user._id,
-        progressPercentage: 0,
-        isUnlocked: false,
+        progressPercentage,
+        isUnlocked,
         isClaimed: false,
-        rewards: [
-          {
-            title: 'First Focus',
-            iconName: 'focus',
-            colorHex: '#3b82f6',
-            isUnlocked: false,
-          },
-          {
-            title: 'Dedicated Learner',
-            iconName: 'learner',
-            colorHex: '#10b981',
-            isUnlocked: false,
-          },
-        ],
       });
+    } else {
+      // If the chest was claimed but we have enough minutes for a RELOAD (the cycle reset)
+      // we reset the claimed flag.
+      if (chest.isClaimed && minutesInCurrentCycle < unlockMinutes) {
+        // Stay claimed until they build up focus again or if we want to reset immediately
+        // Let's keep it simple: progress shows current build-up.
+      }
+
+      chest.progressPercentage = progressPercentage;
+      chest.isUnlocked = isUnlocked;
+
+      // Reset claim status if a new cycle is starting
+      if (minutesInCurrentCycle < 1 && chest.isClaimed) {
+        chest.isClaimed = false;
+      }
+
+      await chest.save();
     }
 
     res.json({
@@ -44,66 +86,10 @@ router.get('/my-chest', protect, async (req, res) => {
         progressPercentage: chest.progressPercentage,
         isUnlocked: chest.isUnlocked,
         isClaimed: chest.isClaimed,
-        rewards: chest.rewards,
-        unlockedAt: chest.unlockedAt,
-        claimedAt: chest.claimedAt,
-        createdAt: chest.createdAt,
-        updatedAt: chest.updatedAt,
-      },
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message || 'Server error',
-    });
-  }
-});
-
-// @route   PUT /api/treasure-chests/update-progress
-// @desc    Update treasure chest progress
-// @access  Private
-router.put('/update-progress', protect, async (req, res) => {
-  try {
-    const { progressPercentage } = req.body;
-
-    let chest = await TreasureChest.findOne({ userId: req.user._id })
-      .sort({ createdAt: -1 });
-
-    if (!chest) {
-      chest = await TreasureChest.create({
-        userId: req.user._id,
-        progressPercentage: 0,
-        isUnlocked: false,
-        isClaimed: false,
-        rewards: [],
-      });
-    }
-
-    chest.progressPercentage = Math.min(Math.max(progressPercentage || 0, 0), 100);
-
-    // Unlock chest if progress reaches 100%
-    if (chest.progressPercentage >= 100 && !chest.isUnlocked) {
-      chest.isUnlocked = true;
-      chest.unlockedAt = new Date();
-      
-      // Unlock all rewards
-      chest.rewards.forEach(reward => {
-        reward.isUnlocked = true;
-        reward.unlockedAt = new Date();
-      });
-    }
-
-    await chest.save();
-
-    res.json({
-      success: true,
-      chest: {
-        id: chest._id,
-        userId: chest.userId,
-        progressPercentage: chest.progressPercentage,
-        isUnlocked: chest.isUnlocked,
-        isClaimed: chest.isClaimed,
-        rewards: chest.rewards,
+        totalMinutes: Math.floor(totalMinutes),
+        minutesInCurrentCycle: Math.floor(minutesInCurrentCycle),
+        unlockMinutes: unlockMinutes,
+        minutesRemaining: Math.max(0, unlockMinutes - Math.floor(minutesInCurrentCycle)),
       },
     });
   } catch (error) {
@@ -115,50 +101,69 @@ router.put('/update-progress', protect, async (req, res) => {
 });
 
 // @route   PUT /api/treasure-chests/claim
-// @desc    Claim treasure chest rewards
+// @desc    Claim treasure chest rewards and reset cycle
 // @access  Private
 router.put('/claim', protect, async (req, res) => {
   try {
-    const chest = await TreasureChest.findOne({ userId: req.user._id })
-      .sort({ createdAt: -1 });
+    const user = await User.findById(req.user._id);
+    const chest = await TreasureChest.findOne({ userId: req.user._id }).sort({ createdAt: -1 });
 
-    if (!chest) {
-      return res.status(404).json({
-        success: false,
-        message: 'Treasure chest not found',
-      });
+    if (!user || !chest) {
+      return res.status(404).json({ success: false, message: 'Data not found' });
     }
 
-    if (!chest.isUnlocked) {
+    // 1. Get dynamic unlock interval
+    const unlockMinutes = await getChestUnlockMinutes();
+
+    // 2. Verify eligibility
+    const totalMinutes = (user.totalFocusHours || 0) * 60;
+    const minutesInCurrentCycle = totalMinutes - (user.lastClaimedFocusMinutes || 0);
+
+    if (minutesInCurrentCycle < unlockMinutes && !chest.isUnlocked) {
       return res.status(400).json({
         success: false,
-        message: 'Treasure chest is not unlocked yet',
+        message: `Chest is still locked! Focus ${unlockMinutes} minutes to unlock.`,
       });
     }
 
     if (chest.isClaimed) {
       return res.status(400).json({
         success: false,
-        message: 'Rewards already claimed',
+        message: 'Reward already claimed for this cycle.',
       });
     }
 
+    // 3. Get Rewards from Admin Settings
+    const rewards = await getChestRewards();
+
+    // 4. Apply rewards to Castle
+    let castle = await Castle.findOne({ userId: user._id });
+    if (!castle) {
+      castle = await Castle.create({ userId: user._id });
+    }
+
+    castle.coins += rewards.coins;
+    castle.wood += rewards.wood;
+    castle.stones += rewards.stones;
+    await castle.save();
+
+    // 5. Update User state (Reset the cycle by the exact unlock value)
+    user.lastClaimedFocusMinutes += unlockMinutes;
+    user.totalCoins += rewards.coins; // Also track lifetime coins on user
+    await user.save();
+
+    // 6. Update Chest model
     chest.isClaimed = true;
     chest.claimedAt = new Date();
+    chest.progressPercentage = 0; // Reset for visual feedback
+    chest.isUnlocked = false;
     await chest.save();
 
     res.json({
       success: true,
-      message: 'Rewards claimed successfully',
-      chest: {
-        id: chest._id,
-        userId: chest.userId,
-        progressPercentage: chest.progressPercentage,
-        isUnlocked: chest.isUnlocked,
-        isClaimed: chest.isClaimed,
-        rewards: chest.rewards,
-        claimedAt: chest.claimedAt,
-      },
+      message: 'REWARDS CLAIMED!',
+      rewards,
+      chest,
     });
   } catch (error) {
     res.status(500).json({
