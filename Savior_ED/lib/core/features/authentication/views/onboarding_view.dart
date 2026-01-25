@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 import '../../../widgets/gradient_background.dart';
 import '../../../routes/app_routes.dart';
+import '../../../services/storage_service.dart';
+import '../../../consts/app_consts.dart';
 
 class OnboardingView extends StatelessWidget {
   const OnboardingView({super.key});
@@ -18,7 +20,7 @@ class OnboardingView extends StatelessWidget {
               child: Column(
                 children: [
                   SizedBox(height: 7.h),
-                  
+
                   // Title - "UNLOCK YOUR POTENTIAL" in large, bold, dark blue
                   Text(
                     'UNLOCK YOUR POTENTIAL',
@@ -26,13 +28,18 @@ class OnboardingView extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 28.sp,
                       fontWeight: FontWeight.w800,
-                      color: const Color.fromARGB(255, 23, 84, 150), // Dark blue matching mockup
+                      color: const Color.fromARGB(
+                        255,
+                        23,
+                        84,
+                        150,
+                      ), // Dark blue matching mockup
                       letterSpacing: 0.5,
                     ),
                   ),
-                  
+
                   SizedBox(height: 2.h),
-                  
+
                   // Description text in dark blue
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 4.w),
@@ -42,14 +49,19 @@ class OnboardingView extends StatelessWidget {
                       style: TextStyle(
                         fontSize: 15.sp,
                         fontWeight: FontWeight.w500,
-                        color:  const Color.fromARGB(255, 23, 84, 150), // Dark blue matching mockup
+                        color: const Color.fromARGB(
+                          255,
+                          23,
+                          84,
+                          150,
+                        ), // Dark blue matching mockup
                         height: 1.5,
                       ),
                     ),
                   ),
-                  
+
                   SizedBox(height: 8.h),
-                  
+
                   // Onboarding image in center
                   Center(
                     child: Image.asset(
@@ -73,20 +85,30 @@ class OnboardingView extends StatelessWidget {
                       },
                     ),
                   ),
-                  
+
                   SizedBox(height: 20.h),
-                  
+
                   // Continue Button - light blue matching mockup
                   SizedBox(
                     width: double.infinity,
                     child: Material(
-                      color: const Color(0xFF81D4FA), // Light blue matching mockup
+                      color: const Color(
+                        0xFF81D4FA,
+                      ), // Light blue matching mockup
                       borderRadius: BorderRadius.circular(30.sp),
                       elevation: 4,
                       shadowColor: const Color(0xFF81D4FA).withOpacity(0.3),
                       child: InkWell(
                         borderRadius: BorderRadius.circular(30.sp),
-                        onTap: () {
+                        onTap: () async {
+                          // Mark onboarding as seen
+                          await StorageService().saveBool(
+                            AppConsts.hasSeenOnboardingKey,
+                            true,
+                          );
+
+                          if (!context.mounted) return;
+
                           Navigator.pushReplacementNamed(
                             context,
                             AppRoutes.welcome,
@@ -108,7 +130,7 @@ class OnboardingView extends StatelessWidget {
                       ),
                     ),
                   ),
-                  
+
                   SizedBox(height: 4.h),
                 ],
               ),

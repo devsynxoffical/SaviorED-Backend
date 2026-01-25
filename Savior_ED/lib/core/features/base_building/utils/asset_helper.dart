@@ -1,6 +1,7 @@
 class AssetHelper {
   static String getAssetPath(String templateId) {
     if (templateId.contains('wall')) return 'assets/images/level1/wall.png';
+    if (templateId.contains('cannon')) return 'assets/images/level1/cannon.png';
     if (templateId.contains('tower')) return 'assets/images/level1/tower.png';
     if (templateId.contains('house') ||
         templateId.contains('hall') ||

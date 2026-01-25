@@ -11,7 +11,7 @@ class LevelConfig {
       requirements: LevelRequirements(
         level: 1,
         requiredItems: [
-          ItemRequirement(itemTemplateId: 'wall_basic', quantity: 4),
+          ItemRequirement(itemTemplateId: 'cannon_defense', quantity: 4),
           ItemRequirement(itemTemplateId: 'tower_small', quantity: 4),
           ItemRequirement(itemTemplateId: 'gate_basic', quantity: 1),
         ],

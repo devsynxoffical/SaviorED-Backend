@@ -24,11 +24,13 @@ class BaseBuildingView extends StatefulWidget {
   State<BaseBuildingView> createState() => _BaseBuildingViewState();
 }
 
-class _BaseBuildingViewState extends State<BaseBuildingView> {
+class _BaseBuildingViewState extends State<BaseBuildingView>
+    with SingleTickerProviderStateMixin {
   final TransformationController _transformationController =
       TransformationController();
   final GlobalKey _mapAreaKey = GlobalKey();
   bool _isInventoryOpen = false;
+  late AnimationController _backgroundAnimationController;
 
   @override
   void initState() {
@@ -37,6 +39,11 @@ class _BaseBuildingViewState extends State<BaseBuildingView> {
       DeviceOrientation.landscapeLeft,
       DeviceOrientation.landscapeRight,
     ]);
+    _backgroundAnimationController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 10),
+    )..repeat();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final viewModel = Provider.of<BaseBuildingViewModel>(
         context,
@@ -59,6 +66,11 @@ class _BaseBuildingViewState extends State<BaseBuildingView> {
       profileViewModel.loadProfile();
       inventoryViewModel.getInventory();
       castleViewModel.getMyCastle(); // Load fresh resource data
+
+      // Sync update callback
+      viewModel.onCastleDataUpdated = (data) {
+        castleViewModel.updateFromData(data);
+      };
 
       // Center the view and set initial zoom level
       final size = MediaQuery.of(context).size;
@@ -95,15 +107,14 @@ class _BaseBuildingViewState extends State<BaseBuildingView> {
   void dispose() {
     SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     _transformationController.dispose();
+    _backgroundAnimationController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(
-        0xFF689F38,
-      ), // Matched to map/decoration layer
+      backgroundColor: Colors.black, // Dark base for the image overlay
       floatingActionButton: Consumer<BaseBuildingViewModel>(
         builder: (context, viewModel, child) {
           if (viewModel.isVisitorMode ||
@@ -165,6 +176,24 @@ class _BaseBuildingViewState extends State<BaseBuildingView> {
 
           return Stack(
             children: [
+              // 0. GLOBAL INFINITE JUNGLE BACKGROUND
+              Positioned.fill(
+                child: Container(
+                  decoration: const BoxDecoration(
+                    image: DecorationImage(
+                      image: AssetImage('assets/images/seamless_grass.png'),
+                      repeat: ImageRepeat.repeat,
+                      scale: 0.8,
+                      colorFilter: ColorFilter.mode(
+                        Colors.black26,
+                        BlendMode.darken,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
+              // 1. Interactive Content
               _build2DView(viewModel),
               if (viewModel.isVisitorMode && viewModel.placedItems.isEmpty)
                 Center(
@@ -289,7 +318,8 @@ class _BaseBuildingViewState extends State<BaseBuildingView> {
 
     return InteractiveViewer(
       transformationController: _transformationController,
-      minScale: fitScale,
+      minScale:
+          fitScale, // LOCK ZOOM OUT: User cannot zoom out more than the initial fit
       maxScale: 4.0,
       // Add margin to allow centering if scaled content is smaller than screen
       boundaryMargin: const EdgeInsets.all(double.infinity),
@@ -316,13 +346,47 @@ class _BaseBuildingViewState extends State<BaseBuildingView> {
               key: _mapAreaKey,
               width: mapSize,
               height: mapSize,
-              color: const Color(0xFF689F38),
+              color: Colors.transparent, // Removed solid green background
               alignment: Alignment.center, // CRITICAL: Center contents
               child: Stack(
                 alignment: Alignment.center, // CRITICAL: Center stack items
                 children: [
-                  // 1. Decorations (Trees/Jungle outside grid)
-                  ..._buildDecorations(mapSize, 20, desiredGridWidth / 2 + 20),
+                  // 1. Infinite Jungle Background (Tiled covers EVERYTHING)
+                  Positioned.fill(
+                    child: Container(
+                      decoration: const BoxDecoration(
+                        image: DecorationImage(
+                          image: AssetImage(
+                            'assets/images/env_jungle_corner.png',
+                          ),
+                          repeat: ImageRepeat.repeat,
+                          scale: 0.8, // Adjusted scale for better density
+                          colorFilter: ColorFilter.mode(
+                            Colors.black54, // Darker filter for better contrast
+                            BlendMode.darken,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // 2. "Clearing" Effect (Radial Mask behind grid)
+                  Center(
+                    child: Container(
+                      width: mapSize * 0.8,
+                      height: mapSize * 0.8,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF689F38), // Blend into map bg
+                            blurRadius: 100,
+                            spreadRadius: 50,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
 
                   // 2. Playable Grid
                   Center(
@@ -330,7 +394,9 @@ class _BaseBuildingViewState extends State<BaseBuildingView> {
                       width: gridSize * cellSize,
                       height: gridSize * cellSize,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF8BC34A),
+                        color: const Color(
+                          0xFF8BC34A,
+                        ).withOpacity(0.5), // Semi-transparent green grid
                         border: Border.all(
                           color: const Color(0xFF33691E),
                           width: 2,
@@ -429,7 +495,9 @@ class _BaseBuildingViewState extends State<BaseBuildingView> {
         );
         final cost = BuildingCostConfig.getCost(templateId);
 
-        if (cost.isFree) {
+        final int inStock = castleViewModel.castle?.inventory[templateId] ?? 0;
+
+        if (cost.isFree || inStock > 0) {
           viewModel.placeItem(
             itemType: 'building',
             itemId: templateId,
@@ -437,12 +505,13 @@ class _BaseBuildingViewState extends State<BaseBuildingView> {
             gridY: topY,
           );
         } else {
-          // Check & Spend Logic
+          // Check & Spend Logic (Purchase)
           castleViewModel
               .spendResources(
                 coins: cost.coins,
                 wood: cost.wood,
                 stone: cost.stone,
+                itemId: templateId, // Record purchase
               )
               .then((success) {
                 if (success) {
@@ -581,8 +650,6 @@ class _BaseBuildingViewState extends State<BaseBuildingView> {
               child: Image.asset(
                 AssetHelper.getAssetPath(templateId),
                 fit: BoxFit.contain,
-                color: const Color(0xFF8BC34A),
-                colorBlendMode: BlendMode.multiply,
               ),
             ),
           ),
@@ -593,18 +660,16 @@ class _BaseBuildingViewState extends State<BaseBuildingView> {
           child: Container(
             width: renderSize,
             height: renderSize,
-            decoration: BoxDecoration(
-              color: Colors.blue.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: Colors.blueAccent, width: 3),
+            decoration: const BoxDecoration(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.zero,
+              border: null,
             ),
             child: Transform.flip(
               flipX: viewModel.isFlippedGlobal,
               child: Image.asset(
                 AssetHelper.getAssetPath(templateId),
                 fit: BoxFit.contain,
-                color: const Color(0xFF8BC34A),
-                colorBlendMode: BlendMode.multiply,
               ),
             ),
           ),
@@ -617,8 +682,6 @@ class _BaseBuildingViewState extends State<BaseBuildingView> {
     return Image.asset(
       AssetHelper.getAssetPath(item.itemId),
       fit: BoxFit.contain,
-      color: const Color(0xFF8BC34A),
-      colorBlendMode: BlendMode.multiply,
       errorBuilder: (context, error, stackTrace) => Container(
         decoration: BoxDecoration(
           color: Colors.red.withValues(alpha: 0.5),
@@ -658,7 +721,9 @@ class _BaseBuildingViewState extends State<BaseBuildingView> {
       );
       final cost = BuildingCostConfig.getCost(templateId);
 
-      if (cost.isFree) {
+      final int inStock = castleViewModel.castle?.inventory[templateId] ?? 0;
+
+      if (cost.isFree || inStock > 0) {
         viewModel.placeItem(
           itemType: 'building',
           itemId: templateId,
@@ -672,6 +737,7 @@ class _BaseBuildingViewState extends State<BaseBuildingView> {
               coins: cost.coins,
               wood: cost.wood,
               stone: cost.stone,
+              itemId: templateId, // Record purchase
             )
             .then((success) {
               if (success) {
@@ -713,12 +779,9 @@ class _BaseBuildingViewState extends State<BaseBuildingView> {
     // Calculate completion safely
     double completion = 0.0;
     if (progress != null) {
-      final totalRequired = viewModel
-          .currentLevelConfig
-          .requirements
-          .requiredItems
-          .fold(0, (sum, item) => sum + item.quantity);
-      completion = progress.calculateCompletionPercentage(totalRequired);
+      completion = progress.calculateCompletionPercentage(
+        viewModel.currentLevelConfig.requirements,
+      );
     }
     completion = completion.clamp(0.0, 1.0);
 
@@ -994,6 +1057,25 @@ class _BaseBuildingViewState extends State<BaseBuildingView> {
           ],
         ),
         actions: [
+          if (viewModel.levelProgress?.isCompleted ?? false)
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 12,
+                ),
+              ),
+              onPressed: () async {
+                Navigator.pop(context);
+                await _handleLevelUp(context);
+              },
+              child: const Text(
+                'LEVEL UP!',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text(
@@ -1004,6 +1086,61 @@ class _BaseBuildingViewState extends State<BaseBuildingView> {
         ],
       ),
     );
+  }
+
+  Future<void> _handleLevelUp(BuildContext context) async {
+    final castleViewModel = Provider.of<CastleGroundsViewModel>(
+      context,
+      listen: false,
+    );
+    final baseViewModel = Provider.of<BaseBuildingViewModel>(
+      context,
+      listen: false,
+    );
+
+    // Optimistic UI or Loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) =>
+          const Center(child: CircularProgressIndicator(color: Colors.amber)),
+    );
+
+    final success = await castleViewModel.levelUp();
+
+    if (context.mounted) {
+      Navigator.pop(context); // Close loading
+
+      if (success) {
+        // Refresh base data to get new level limits
+        baseViewModel.loadBase();
+
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            backgroundColor: const Color(0xFFFFF8E1),
+            title: const Text('🎉 LEVEL UP! 🎉', textAlign: TextAlign.center),
+            content: Text(
+              'Congratulations! You have reached Level ${castleViewModel.castle?.level ?? "?"}!',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 18.sp, fontWeight: FontWeight.bold),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('AWESOME'),
+              ),
+            ],
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to level up. Check connection.'),
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildManagementBar(BaseBuildingViewModel viewModel) {
@@ -1045,7 +1182,10 @@ class _BaseBuildingViewState extends State<BaseBuildingView> {
                       Text(
                         'STURDY FORTIFICATION',
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(color: Colors.white54, fontSize: 10.sp),
+                        style: TextStyle(
+                          color: Colors.white54,
+                          fontSize: 10.sp,
+                        ),
                       ),
                     ],
                   ),
@@ -1192,25 +1332,16 @@ class _BaseBuildingViewState extends State<BaseBuildingView> {
           child: Container(
             width: renderSize,
             height: renderSize,
-            decoration: BoxDecoration(
-              color: viewModel.isPreviewValid
-                  ? Colors.blue.withValues(alpha: 0.15)
-                  : Colors.red.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: viewModel.isPreviewValid
-                    ? Colors.blueAccent
-                    : Colors.redAccent,
-                width: 2,
-              ),
+            decoration: const BoxDecoration(
+              color: Colors.transparent,
+              borderRadius: BorderRadius.zero,
+              border: null,
             ),
             child: Transform.flip(
               flipX: viewModel.isFlippedGlobal,
               child: Image.asset(
                 AssetHelper.getAssetPath(templateId),
                 fit: BoxFit.contain,
-                color: const Color(0xFF8BC34A),
-                colorBlendMode: BlendMode.multiply,
               ),
             ),
           ),
@@ -1225,6 +1356,64 @@ class _BaseBuildingViewState extends State<BaseBuildingView> {
     PlacedItemModel item,
     String nextTier,
   ) {
+    // Determine Required Level for the Next Tier
+    int requiredLevel = 1;
+    if (nextTier.contains('medium') ||
+        nextTier.contains('watch') ||
+        nextTier.contains('shed'))
+      requiredLevel = 2;
+    else if (nextTier.contains('strong') ||
+        nextTier.contains('defense') ||
+        nextTier.contains('armory'))
+      requiredLevel = 3;
+    else if (nextTier.contains('fortress') ||
+        nextTier.contains('battle') ||
+        nextTier.contains('complex'))
+      requiredLevel = 4;
+    else if (nextTier.contains('master') || nextTier.contains('advanced'))
+      requiredLevel = 5;
+    else if (nextTier.contains('legendary'))
+      requiredLevel = 6;
+
+    // STRICT LEVEL GATING
+    if (viewModel.currentLevel < requiredLevel) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          backgroundColor: const Color(0xFFF5E6CA),
+          title: const Text(
+            'UPGRADE LOCKED',
+            style: TextStyle(
+              color: Color(0xFF5D4037),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.lock, size: 50, color: Colors.grey.shade600),
+              const SizedBox(height: 15),
+              Text(
+                'You must upgrade your Castle to Level $requiredLevel to unlock this building upgrade.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(fontSize: 16),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text(
+                'CLOSE',
+                style: TextStyle(color: Color(0xFF5D4037)),
+              ),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
     final cost = BuildingCostConfig.getCost(nextTier);
 
     showDialog(
@@ -1362,52 +1551,164 @@ class _BaseBuildingViewState extends State<BaseBuildingView> {
           });
     }
   }
+}
 
-  /// Generate random decorations outside the central grid area
-  List<Widget> _buildDecorations(double mapSize, int count, double minRadius) {
-    final random = math.Random(12345); // Fixed seed for consistent placement
-    final widgets = <Widget>[];
-    final centerX = mapSize / 2;
-    final centerY = mapSize / 2;
+/// Custom Painter for the background environment (River, Mountains, Ripples, Fireflies)
+class EnvironmentPainter extends CustomPainter {
+  final double mapSize;
+  final double animationValue;
 
-    for (int i = 0; i < count; i++) {
-      // Generate random position
-      double dx = (random.nextDouble() - 0.5) * mapSize;
-      double dy = (random.nextDouble() - 0.5) * mapSize;
+  EnvironmentPainter({required this.mapSize, required this.animationValue});
 
-      // Check distance from center
-      final distance = math.sqrt(dx * dx + dy * dy);
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = mapSize / 2;
 
-      // Only keep if outside the main grid area (plus a buffer)
-      if (distance > minRadius) {
-        final isTree = random.nextBool();
-        widgets.add(
-          Positioned(
-            left: centerX + dx,
-            top: centerY + dy,
-            child: Opacity(
-              opacity: 0.8,
-              child: Image.asset(
-                isTree
-                    ? 'assets/images/tree_1.png'
-                    : 'assets/images/bush_1.png',
-                width: isTree ? 80 : 40,
-                height: isTree ? 80 : 40,
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) {
-                  // Fallback if assets don't exist
-                  return Icon(
-                    Icons.forest,
-                    color: Colors.green.shade800.withOpacity(0.5),
-                    size: 40,
-                  );
-                },
-              ),
+    // --- DRAW WESTERN RIVER ---
+    final riverPaint = Paint()
+      ..color = const Color(0xFF4FC3F7).withOpacity(0.5)
+      ..style = PaintingStyle.fill;
+
+    final riverPath = Path();
+    riverPath.moveTo(0, center - 400);
+
+    // Create organic winding path
+    for (double i = 0; i < center + 500; i += 20) {
+      double waveOffset =
+          math.sin((i / 100) + (animationValue * 2 * math.pi)) * 10;
+      riverPath.lineTo(40 + waveOffset, center - 400 + i);
+    }
+    riverPath.lineTo(0, mapSize);
+    riverPath.close();
+    canvas.drawPath(riverPath, riverPaint);
+
+    // --- WATER RIPPLES ---
+    final ripplePaint = Paint()
+      ..color = Colors.white.withOpacity(0.3)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2;
+
+    for (int i = 0; i < 8; i++) {
+      double rPos = ((animationValue + (i / 8)) % 1.0) * (mapSize / 2);
+      double rX = 20 + math.sin(rPos / 50) * 10;
+      double rY = center - 300 + rPos;
+
+      canvas.drawOval(
+        Rect.fromCenter(center: Offset(rX, rY), width: 30, height: 10),
+        ripplePaint
+          ..color = Colors.white.withOpacity(
+            0.3 * (1.0 - (rPos / (mapSize / 2))),
+          ),
+      );
+    }
+
+    // --- DRAW EASTERN MOUNTAINS ---
+    for (int i = 0; i < 6; i++) {
+      final mX = mapSize - 150 - (i * 120);
+      final mY = center - 300 + (i * 140);
+      final mHeight = 150.0 + (i * 30);
+
+      final mPath = Path();
+      mPath.moveTo(mX, mY);
+      mPath.lineTo(mX + 150, mY + 80);
+      mPath.lineTo(mX + 300, mY);
+      mPath.lineTo(mX + 150, mY - mHeight); // Peak
+      mPath.close();
+
+      final shadowPaint = Paint()
+        ..color = Colors.brown.withOpacity(0.3 + (i * 0.05));
+      canvas.drawPath(mPath, shadowPaint);
+
+      // Snow cap
+      final capPath = Path();
+      capPath.moveTo(mX + 150 - 30, mY - mHeight + 40);
+      capPath.lineTo(mX + 150, mY - mHeight);
+      capPath.lineTo(mX + 150 + 30, mY - mHeight + 40);
+      capPath.close();
+      canvas.drawPath(capPath, Paint()..color = Colors.white.withOpacity(0.7));
+    }
+
+    // --- DYNAMIC FIREFLIES ---
+    final fireflyPaint = Paint()..style = PaintingStyle.fill;
+    for (int i = 0; i < 20; i++) {
+      double fAngle = (animationValue * 2 * math.pi) + (i * 2.0);
+
+      // Distribute fireflies mostly around North/Jungle
+      double fx =
+          (center + math.cos(fAngle) * (mapSize / 3)) +
+          (math.sin(fAngle * 2) * 20);
+      double fy = (center / 2 + math.sin(fAngle) * 200);
+
+      double opacity = (0.5 + 0.5 * math.sin(fAngle * 3)).clamp(0.0, 1.0);
+      fireflyPaint.color = Colors.yellowAccent.withOpacity(opacity * 0.8);
+
+      // Inner glow
+      canvas.drawCircle(Offset(fx, fy), 3, fireflyPaint);
+      // Outer glow
+      canvas.drawCircle(
+        Offset(fx, fy),
+        8,
+        Paint()..color = Colors.yellowAccent.withOpacity(opacity * 0.2),
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(EnvironmentPainter oldDelegate) => true;
+}
+
+/// Animated Tree widget that sways in the wind
+class _AnimatedTree extends StatefulWidget {
+  final int delay;
+  const _AnimatedTree({required this.delay});
+
+  @override
+  State<_AnimatedTree> createState() => _AnimatedTreeState();
+}
+
+class _AnimatedTreeState extends State<_AnimatedTree>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2500),
+    );
+    Future.delayed(Duration(milliseconds: widget.delay), () {
+      if (mounted) _controller.repeat(reverse: true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        return Transform(
+          alignment: Alignment.bottomCenter,
+          transform: Matrix4.skewX(_controller.value * 0.05),
+          child: Opacity(
+            opacity: 0.85,
+            child: Image.asset(
+              'assets/images/tree_isometric.png',
+              width: 100,
+              height: 100,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) =>
+                  const Icon(Icons.forest, color: Colors.green, size: 40),
             ),
           ),
         );
-      }
-    }
-    return widgets;
+      },
+    );
   }
 }

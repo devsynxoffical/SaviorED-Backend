@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 import '../../../widgets/gradient_background.dart';
-import '../../../consts/app_colors.dart';
 import '../../../routes/app_routes.dart';
 import '../viewmodels/auth_viewmodel.dart';
+import '../../../services/storage_service.dart';
+import '../../../consts/app_consts.dart';
 
 class SplashView extends StatefulWidget {
   const SplashView({super.key});
@@ -51,20 +52,33 @@ class _SplashViewState extends State<SplashView>
         await authViewModel.initialize();
       }
 
+      final hasSeenOnboarding =
+          StorageService().getBool(AppConsts.hasSeenOnboardingKey) ?? false;
+
+      if (!mounted) return;
+
+      await Future.delayed(const Duration(seconds: 3));
+
       if (!mounted) return;
 
       if (authViewModel.isAuthenticated) {
-        await Future.delayed(const Duration(seconds: 2));
-        if (mounted) {
-          Navigator.pushReplacementNamed(context, AppRoutes.castleGrounds);
-        }
+        Navigator.pushReplacementNamed(context, AppRoutes.castleGrounds);
         return;
       }
-    } catch (_) {}
 
-    await Future.delayed(const Duration(seconds: 2));
-    if (mounted) {
-      Navigator.pushReplacementNamed(context, AppRoutes.onboarding);
+      if (hasSeenOnboarding) {
+        // If they have seen onboarding but aren't authenticated, go to welcome/login
+        Navigator.pushReplacementNamed(context, AppRoutes.welcome);
+      } else {
+        // First time user
+        Navigator.pushReplacementNamed(context, AppRoutes.onboarding);
+      }
+    } catch (e) {
+      print("Splash navigation error: $e");
+      // Fallback
+      if (mounted) {
+        Navigator.pushReplacementNamed(context, AppRoutes.onboarding);
+      }
     }
   }
 
@@ -107,7 +121,7 @@ class _SplashViewState extends State<SplashView>
                               );
                             },
                           ),
-                          
+
                           // Text overlay at the top - matching mockup design
                           Positioned(
                             top: 28.h,
@@ -123,7 +137,9 @@ class _SplashViewState extends State<SplashView>
                                   style: TextStyle(
                                     fontSize: 32.sp,
                                     fontWeight: FontWeight.w800,
-                                    color: const Color(0xFF1565C0), // Dark blue matching mockup
+                                    color: const Color(
+                                      0xFF1565C0,
+                                    ), // Dark blue matching mockup
                                     letterSpacing: -0.8,
                                     shadows: [
                                       Shadow(
@@ -134,19 +150,23 @@ class _SplashViewState extends State<SplashView>
                                     ],
                                   ),
                                 ),
-                                
+
                                 SizedBox(height: 1.5.h),
-                                
+
                                 // Tagline - "Turn study time into rewards" in smaller dark blue
                                 Padding(
-                                  padding: EdgeInsets.symmetric(horizontal: 10.w),
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 10.w,
+                                  ),
                                   child: Text(
                                     'Turn study time into rewards',
                                     textAlign: TextAlign.center,
                                     style: TextStyle(
                                       fontSize: 16.sp,
                                       fontWeight: FontWeight.w600,
-                                      color: const Color(0xFF1565C0), // Dark blue matching mockup
+                                      color: const Color(
+                                        0xFF1565C0,
+                                      ), // Dark blue matching mockup
                                       letterSpacing: 0.3,
                                       shadows: [
                                         Shadow(
@@ -168,43 +188,7 @@ class _SplashViewState extends State<SplashView>
                 ),
               ),
 
-              // Get Started Button at the bottom - rounded to match design
-              Positioned(
-                bottom: 6.h,
-                left: 6.w,
-                right: 6.w,
-                child: FadeTransition(
-                  opacity: _fadeAnimation,
-                  child: Material(
-                    color: AppColors.secondary,
-                    borderRadius: BorderRadius.circular(30.sp),
-                    elevation: 4,
-                    shadowColor: AppColors.secondary.withOpacity(0.3),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(30.sp),
-                      onTap: () {
-                        Navigator.pushReplacementNamed(
-                          context,
-                          AppRoutes.onboarding,
-                        );
-                      },
-                      child: Container(
-                        padding: EdgeInsets.symmetric(vertical: 2.2.h),
-                        alignment: Alignment.center,
-                        child: Text(
-                          'Get Started',
-                          style: TextStyle(
-                            fontSize: 18.sp,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+              // No button here as it is now a timed splash screen
             ],
           ),
         ),

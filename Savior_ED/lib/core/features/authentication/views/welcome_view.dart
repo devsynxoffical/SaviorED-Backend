@@ -23,7 +23,7 @@ class WelcomeView extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 SizedBox(height: 12.h),
-                
+
                 // Title - WELCOME BACK! LET'S GET YOU STARTED ON YOUR FOCUS JOURNEY.
                 Text(
                   'WELCOME BACK!\nLET\'S GET YOU STARTED\nON YOUR FOCUS JOURNEY.',
@@ -31,19 +31,23 @@ class WelcomeView extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 20.sp,
                     fontWeight: FontWeight.w800,
-                    color: const Color(0xFF1B5E20), // Dark green/blue matching mockup
+                    color: const Color(
+                      0xFF1B5E20,
+                    ), // Dark green/blue matching mockup
                     height: 1.3,
                     letterSpacing: 0.5,
                   ),
                 ),
-                
+
                 SizedBox(height: 10.h),
-                
+
                 // Sign In Button - Light blue matching mockup
                 SizedBox(
                   width: double.infinity,
                   child: Material(
-                    color: const Color(0xFF81D4FA), // Light blue matching mockup
+                    color: const Color(
+                      0xFF81D4FA,
+                    ), // Light blue matching mockup
                     borderRadius: BorderRadius.circular(28.sp),
                     elevation: 2,
                     child: InkWell(
@@ -67,14 +71,16 @@ class WelcomeView extends StatelessWidget {
                     ),
                   ),
                 ),
-                
+
                 SizedBox(height: 1.5.h),
-                
+
                 // Sign Up Button - Light green matching mockup
                 SizedBox(
                   width: double.infinity,
                   child: Material(
-                    color: const Color(0xFF81C784), // Light green matching mockup
+                    color: const Color(
+                      0xFF81C784,
+                    ), // Light green matching mockup
                     borderRadius: BorderRadius.circular(28.sp),
                     elevation: 2,
                     child: InkWell(
@@ -98,21 +104,24 @@ class WelcomeView extends StatelessWidget {
                     ),
                   ),
                 ),
-                
+
                 SizedBox(height: 1.5.h),
-                
+
                 // Google Sign In Button - White with border matching mockup
                 _buildGoogleButton(context),
-                
+
                 SizedBox(height: 1.5.h),
-                
+
                 // Forgot Password Link - Blue text without underline
                 TextButton(
                   onPressed: () {
                     Navigator.pushNamed(context, AppRoutes.forgotPassword);
                   },
                   style: TextButton.styleFrom(
-                    padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 2.h),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 4.w,
+                      vertical: 2.h,
+                    ),
                   ),
                   child: Text(
                     'Forgot password?',
@@ -123,7 +132,7 @@ class WelcomeView extends StatelessWidget {
                     ),
                   ),
                 ),
-                
+
                 SizedBox(height: 2.h),
               ],
             ),
@@ -153,7 +162,9 @@ class WelcomeView extends StatelessWidget {
               ToastService.showError(
                 context,
                 title: "Google Sign In",
-                description: authViewModel.errorMessage ?? "Google sign in is not available. Please use email/password.",
+                description:
+                    authViewModel.errorMessage ??
+                    "Google sign in is not available. Please use email/password.",
               );
             }
           },
@@ -185,7 +196,8 @@ class WelcomeView extends StatelessWidget {
                 Text(
                   'Continue with Google',
                   style: TextStyle(
-                    color: Colors.grey.shade700, // Dark gray text matching mockup
+                    color:
+                        Colors.grey.shade700, // Dark gray text matching mockup
                     fontSize: 15.sp,
                     fontWeight: FontWeight.w500,
                     letterSpacing: 0.3,

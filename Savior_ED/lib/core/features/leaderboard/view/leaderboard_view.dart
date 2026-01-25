@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:responsive_sizer/responsive_sizer.dart';
 import 'package:provider/provider.dart';
 import '../../../consts/app_colors.dart';
@@ -19,6 +20,8 @@ class _LeaderboardViewState extends State<LeaderboardView> {
   @override
   void initState() {
     super.initState();
+    // Enforce portrait to avoid distortion
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<LeaderboardViewModel>().getGlobalLeaderboard();
       // Also refresh common resources
@@ -28,247 +31,290 @@ class _LeaderboardViewState extends State<LeaderboardView> {
 
   @override
   Widget build(BuildContext context) {
-    final viewModel = context.watch<LeaderboardViewModel>();
-    final castleViewModel = context.watch<CastleGroundsViewModel>();
+    // Orientation Guardian: Only enforce portrait if this is the active page
+    // This prevents "UI damage" on return while allowing landscape in other pages
+    final isCurrent = ModalRoute.of(context)?.isCurrent ?? false;
 
     return Scaffold(
       backgroundColor: const Color(0xFF9DB89D), // Sage green background
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF8BA88B),
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.white, size: 22.sp),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text(
-          'KINGDOM RANKINGS',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 18.sp,
-            fontWeight: FontWeight.w600,
-            letterSpacing: 1.2,
-          ),
-        ),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.refresh, color: Colors.white, size: 20.sp),
-            onPressed: () => viewModel.getGlobalLeaderboard(),
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // Resource bar (Live Data)
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.2.h),
-            decoration: BoxDecoration(
-              color: const Color(0xFF8BA88B),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black12,
-                  offset: Offset(0, 2),
-                  blurRadius: 4,
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                _buildResourceChip(
-                  Icons.monetization_on,
-                  '${castleViewModel.castle?.coins ?? 0} COINS',
-                  AppColors.coinGold,
-                ),
-                SizedBox(width: 4.w),
-                _buildResourceChip(
-                  Icons.construction,
-                  '${castleViewModel.castle?.stones ?? 0} STONES',
-                  AppColors.stoneGray,
-                ),
-                SizedBox(width: 4.w),
-                _buildResourceChip(
-                  Icons.forest,
-                  '${castleViewModel.castle?.wood ?? 0} WOOD',
-                  AppColors.woodBrown,
-                ),
-              ],
-            ),
-          ),
+      body: OrientationBuilder(
+        builder: (context, orientation) {
+          if (isCurrent && orientation == Orientation.landscape) {
+            SystemChrome.setPreferredOrientations([
+              DeviceOrientation.portraitUp,
+            ]);
+            return const Center(
+              child: CircularProgressIndicator(color: Colors.white),
+            );
+          }
 
-          // Navigation Info
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
-            color: const Color(0xFF8BA88B).withValues(alpha: 0.9),
-            child: Row(
-              children: [
-                Container(
-                  padding: EdgeInsets.symmetric(horizontal: 5.w, vertical: 1.h),
-                  decoration: BoxDecoration(
-                    color: AppColors.coinGold.withValues(alpha: 0.4),
-                    borderRadius: BorderRadius.circular(25.sp),
-                    border: Border.all(color: AppColors.coinGold, width: 1.5),
-                  ),
-                  child: Text(
-                    'GLOBAL',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 12.sp,
-                      fontWeight: FontWeight.w800,
+          return Consumer2<LeaderboardViewModel, CastleGroundsViewModel>(
+            builder: (context, viewModel, castleViewModel, child) {
+              return Column(
+                children: [
+                  // AppBar
+                  AppBar(
+                    backgroundColor: const Color(0xFF8BA88B),
+                    elevation: 0,
+                    leading: IconButton(
+                      icon: Icon(
+                        Icons.arrow_back,
+                        color: Colors.white,
+                        size: 22.sp,
+                      ),
+                      onPressed: () => Navigator.pop(context),
                     ),
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  'LIVE RANKINGS',
-                  style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 10.sp,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                SizedBox(width: 1.5.w),
-                Icon(Icons.flash_on, color: AppColors.coinGold, size: 14.sp),
-              ],
-            ),
-          ),
-
-          // Content
-          Expanded(
-            child: viewModel.isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(color: Colors.white),
-                  )
-                : viewModel.errorMessage != null
-                ? Center(
-                    child: Text(
-                      viewModel.errorMessage!,
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                  )
-                : RefreshIndicator(
-                    onRefresh: () => viewModel.getGlobalLeaderboard(),
-                    child: SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      child: Column(
-                        children: [
-                          SizedBox(height: 2.h),
-
-                          // Castle image
-                          Center(
-                            child: Image.asset(
-                              'assets/images/leadboard_castle.png',
-                              width: 90.w,
-                              height: 22.h,
-                              fit: BoxFit.contain,
-                              errorBuilder: (_, __, ___) => Icon(
-                                Icons.castle,
-                                size: 60.sp,
-                                color: Colors.white24,
-                              ),
-                            ),
-                          ),
-
-                          SizedBox(height: 2.h),
-
-                          // TOP 10 Banner
-                          Container(
-                            width: double.infinity,
-                            padding: EdgeInsets.symmetric(vertical: 2.h),
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  const Color(0xFF1E88E5),
-                                  const Color(0xFF42A5F5),
-                                ],
-                              ),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black26,
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.shield,
-                                  color: AppColors.coinGold,
-                                  size: 22.sp,
-                                ),
-                                SizedBox(width: 3.w),
-                                Text(
-                                  'TOP 10 GUARDIANS',
-                                  style: TextStyle(
-                                    fontSize: 20.sp,
-                                    fontWeight: FontWeight.w900,
-                                    color: Colors.white,
-                                    letterSpacing: 2,
-                                  ),
-                                ),
-                                SizedBox(width: 3.w),
-                                Icon(
-                                  Icons.shield,
-                                  color: AppColors.coinGold,
-                                  size: 22.sp,
-                                ),
-                              ],
-                            ),
-                          ),
-
-                          SizedBox(height: 2.h),
-
-                          // Dynamic Rankings List
-                          Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 4.w),
-                            child: ListView.separated(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: viewModel.globalEntries.length,
-                              separatorBuilder: (_, __) =>
-                                  SizedBox(height: 1.5.h),
-                              itemBuilder: (context, index) {
-                                final item = viewModel.globalEntries[index];
-
-                                // Map color logic
-                                Color shieldColor;
-                                if (item.rank == 1) {
-                                  shieldColor = AppColors.coinGold;
-                                } else if (item.rank == 2) {
-                                  shieldColor = const Color(0xFFC0C0C0);
-                                } else if (item.rank == 3) {
-                                  shieldColor = const Color(0xFFCD7F32);
-                                } else {
-                                  shieldColor = Colors.grey[400]!;
-                                }
-
-                                return _buildRankingItem(
-                                  rank: item.rank,
-                                  name: item.name,
-                                  level: item.level,
-                                  coins: item.coins ?? 0,
-                                  shieldColor: shieldColor,
-                                  castleColor: _getCastleColor(item.rank),
-                                  avatar: item.avatar,
-                                  progress: item.progressHours,
-                                  progressMax: item.progressMaxHours,
-                                  buttonText: item.buttonText,
-                                  buttonType: item.buttonType,
-                                  userId: item.userId,
-                                );
-                              },
-                            ),
-                          ),
-
-                          SizedBox(height: 4.h),
-                        ],
+                    title: Text(
+                      'KINGDOM RANKINGS',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18.sp,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 1.2,
                       ),
                     ),
+                    centerTitle: true,
+                    actions: [
+                      IconButton(
+                        icon: Icon(
+                          Icons.refresh,
+                          color: Colors.white,
+                          size: 20.sp,
+                        ),
+                        onPressed: () => viewModel.getGlobalLeaderboard(),
+                      ),
+                    ],
                   ),
-          ),
-        ],
+                  // Resource bar (Live Data)
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 4.w,
+                      vertical: 1.2.h,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF8BA88B),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black12,
+                          offset: const Offset(0, 2),
+                          blurRadius: 4,
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        _buildResourceChip(
+                          Icons.monetization_on,
+                          '${castleViewModel.castle?.coins ?? 0} COINS',
+                          AppColors.coinGold,
+                        ),
+                        SizedBox(width: 4.w),
+                        _buildResourceChip(
+                          Icons.construction,
+                          '${castleViewModel.castle?.stones ?? 0} STONES',
+                          AppColors.stoneGray,
+                        ),
+                        SizedBox(width: 4.w),
+                        _buildResourceChip(
+                          Icons.forest,
+                          '${castleViewModel.castle?.wood ?? 0} WOOD',
+                          AppColors.woodBrown,
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Navigation Info
+                  Container(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 4.w,
+                      vertical: 1.h,
+                    ),
+                    color: const Color(0xFF8BA88B).withValues(alpha: 0.9),
+                    child: Row(
+                      children: [
+                        Container(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 5.w,
+                            vertical: 1.h,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.coinGold.withValues(alpha: 0.4),
+                            borderRadius: BorderRadius.circular(25.sp),
+                            border: Border.all(
+                              color: AppColors.coinGold,
+                              width: 1.5,
+                            ),
+                          ),
+                          child: Text(
+                            'GLOBAL',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12.sp,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          'LIVE RANKINGS',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontSize: 10.sp,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(width: 1.5.w),
+                        Icon(
+                          Icons.flash_on,
+                          color: AppColors.coinGold,
+                          size: 14.sp,
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Content
+                  Expanded(
+                    child: viewModel.isLoading
+                        ? const Center(
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                            ),
+                          )
+                        : viewModel.errorMessage != null
+                        ? Center(
+                            child: Text(
+                              viewModel.errorMessage!,
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                          )
+                        : RefreshIndicator(
+                            onRefresh: () => viewModel.getGlobalLeaderboard(),
+                            child: SingleChildScrollView(
+                              physics: const AlwaysScrollableScrollPhysics(),
+                              child: Column(
+                                children: [
+                                  SizedBox(height: 2.h),
+                                  // Castle image
+                                  Center(
+                                    child: Image.asset(
+                                      'assets/images/leadboard_castle.png',
+                                      width: 90.w,
+                                      height: 22.h,
+                                      fit: BoxFit.contain,
+                                      errorBuilder: (_, __, ___) => Icon(
+                                        Icons.castle,
+                                        size: 60.sp,
+                                        color: Colors.white24,
+                                      ),
+                                    ),
+                                  ),
+                                  SizedBox(height: 2.h),
+                                  // TOP 10 Banner
+                                  Container(
+                                    width: double.infinity,
+                                    padding: EdgeInsets.symmetric(
+                                      vertical: 2.h,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      gradient: const LinearGradient(
+                                        colors: [
+                                          Color(0xFF1E88E5),
+                                          Color(0xFF42A5F5),
+                                        ],
+                                      ),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black26,
+                                          blurRadius: 10,
+                                          offset: const Offset(0, 4),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.emoji_events,
+                                          color: AppColors.coinGold,
+                                          size: 22.sp,
+                                        ),
+                                        SizedBox(width: 3.w),
+                                        Text(
+                                          'TOP 10 GUARDIANS',
+                                          style: TextStyle(
+                                            fontSize: 20.sp,
+                                            fontWeight: FontWeight.w900,
+                                            color: Colors.white,
+                                            letterSpacing: 2,
+                                          ),
+                                        ),
+                                        SizedBox(width: 3.w),
+                                        Icon(
+                                          Icons.emoji_events,
+                                          color: AppColors.coinGold,
+                                          size: 22.sp,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  SizedBox(height: 2.h),
+                                  // Dynamic Rankings List
+                                  Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 4.w,
+                                    ),
+                                    child: ListView.separated(
+                                      shrinkWrap: true,
+                                      physics:
+                                          const NeverScrollableScrollPhysics(),
+                                      itemCount: viewModel.globalEntries.length,
+                                      separatorBuilder: (_, __) =>
+                                          SizedBox(height: 1.5.h),
+                                      itemBuilder: (context, index) {
+                                        final item =
+                                            viewModel.globalEntries[index];
+                                        Color shieldColor;
+                                        if (item.rank == 1) {
+                                          shieldColor = AppColors.coinGold;
+                                        } else if (item.rank == 2) {
+                                          shieldColor = const Color(0xFFC0C0C0);
+                                        } else if (item.rank == 3) {
+                                          shieldColor = const Color(0xFFCD7F32);
+                                        } else {
+                                          shieldColor = Colors.grey[400]!;
+                                        }
+                                        return _buildRankingItem(
+                                          rank: item.rank,
+                                          name: item.name,
+                                          level: item.level,
+                                          coins: item.coins ?? 0,
+                                          shieldColor: shieldColor,
+                                          castleColor: _getCastleColor(
+                                            item.rank,
+                                          ),
+                                          avatar: item.avatar,
+                                          progress: item.progressHours,
+                                          progressMax: item.progressMaxHours,
+                                          buttonText: item.buttonText,
+                                          buttonType: item.buttonType,
+                                          userId: item.userId,
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                  SizedBox(height: 4.h),
+                                ],
+                              ),
+                            ),
+                          ),
+                  ),
+                ],
+              );
+            },
+          );
+        },
       ),
     );
   }

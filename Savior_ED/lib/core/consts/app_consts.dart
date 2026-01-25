@@ -17,12 +17,13 @@ class AppConsts {
   // Storage Keys
   static const String tokenKey = 'auth_token';
   static const String userIdKey = 'user_id';
+  static const String hasSeenOnboardingKey = 'has_seen_onboarding';
 
   // Pagination
   static const int defaultPageSize = 20;
 
   // Game Logic
-  static const int chestUnlockMinutes = 500; // Minutes required for one chest
+  static const int chestUnlockMinutes = 60; // Minutes required for one chest
 
   // Private constructor to prevent instantiation
   AppConsts._();

@@ -128,6 +128,7 @@ class CastleGroundsViewModel extends ChangeNotifier {
     required int coins,
     required int wood,
     required int stone,
+    String? itemId, // Added to track which item is bought
   }) async {
     try {
       // Optimistic check
@@ -151,7 +152,12 @@ class CastleGroundsViewModel extends ChangeNotifier {
 
       final response = await _apiService.post(
         '/api/castles/spend-resources',
-        data: {'coins': coins, 'wood': wood, 'stone': stone},
+        data: {
+          'coins': coins,
+          'wood': wood,
+          'stone': stone,
+          'itemId': itemId, // Pass the item being purchased
+        },
       );
 
       if (response.data['success'] == true) {
@@ -172,6 +178,16 @@ class CastleGroundsViewModel extends ChangeNotifier {
       await getMyCastle(); // Reload to revert state
       setLoading(false);
       return false;
+    }
+  }
+
+  /// Update castle state directly from data (e.g., after layout sync)
+  void updateFromData(Map<String, dynamic> data) {
+    try {
+      _castle = CastleGroundsModel.fromJson(data);
+      notifyListeners();
+    } catch (e) {
+      print('Failed to update castle from data: $e');
     }
   }
 }

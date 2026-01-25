@@ -45,6 +45,7 @@ class _FocusTimeViewState extends State<FocusTimeView>
   AnimationController? _sparkleAnimationController;
   AnimationController? _glitterAnimationController;
   bool _showSessionStart = false; // Show "Session Start" indicator
+  int _elapsedSinceStart = 0; // Track actual time focused for rewards
 
   @override
   void initState() {
@@ -176,8 +177,10 @@ class _FocusTimeViewState extends State<FocusTimeView>
             // Timer completed while away
             _totalSeconds = 0;
             _updateDisplay();
+            final fullDurationSeconds = _initialDurationMinutes * 60;
             _stopTimer();
-            _showCompletionDialog();
+            // Complete backend session for the full duration
+            _completeBackendSession(manualTotalSeconds: fullDurationSeconds);
           }
         } else {
           // Timer was paused or stopped, restore saved time
@@ -549,18 +552,67 @@ class _FocusTimeViewState extends State<FocusTimeView>
       if (_totalSeconds > 0) {
         setState(() {
           _totalSeconds--;
+          _elapsedSinceStart++; // Increment actual elapsed time
           _updateDisplay();
         });
+
+        // NOTIFY USER EVERY MINUTE OF EARNINGS
+        if (_elapsedSinceStart > 0 && _elapsedSinceStart % 60 == 0) {
+          final minute = _elapsedSinceStart ~/ 60;
+
+          // Calculate rewards for this specific minute (Simulated to match backend)
+          // Backend: 1 coin/min, 1 wood/min, 1 stone every 2 mins
+          final earnedCoins = 1;
+          final earnedWood = 1;
+          final earnedStones = minute % 2 == 0 ? 1 : 0;
+
+          final List<String> rewardsText = [];
+          if (earnedCoins > 0) rewardsText.add('+$earnedCoins Coin');
+          if (earnedWood > 0) rewardsText.add('+$earnedWood Wood');
+          if (earnedStones > 0) rewardsText.add('+$earnedStones Stone');
+
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Row(
+                children: [
+                  const Icon(Icons.monetization_on, color: Colors.amber),
+                  SizedBox(width: 2.w),
+                  Expanded(
+                    child: Text(
+                      'Minute $minute: ${rewardsText.join(', ')} 🪙',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+              backgroundColor: const Color(0xFF1B5E20), // Dark green
+              duration: const Duration(seconds: 3),
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              margin: EdgeInsets.only(
+                bottom: 80.h,
+                left: 5.w,
+                right: 5.w,
+              ), // Show at top
+            ),
+          );
+        }
+
         // Save state every 5 seconds and update backend session
         if (_totalSeconds % 5 == 0) {
           await _saveTimerState();
           await _updateBackendSession();
         }
       } else {
+        // Calculate elapsed time BEFORE stopping the timer
+        final fullDurationSeconds = _initialDurationMinutes * 60;
         _stopTimer();
         await _saveTimerState();
-        await _completeBackendSession();
-        _showCompletionDialog();
+        // Complete with full duration since timer finished naturally
+        await _completeBackendSession(manualTotalSeconds: fullDurationSeconds);
       }
     });
   }
@@ -599,18 +651,61 @@ class _FocusTimeViewState extends State<FocusTimeView>
           if (_totalSeconds > 0) {
             setState(() {
               _totalSeconds--;
+              _elapsedSinceStart++;
               _updateDisplay();
             });
+
+            // NOTIFY USER EVERY MINUTE OF EARNINGS (Resume logic same as start)
+            if (_elapsedSinceStart > 0 && _elapsedSinceStart % 60 == 0) {
+              final minute = _elapsedSinceStart ~/ 60;
+
+              // Calculate rewards for this specific minute
+              final earnedCoins = 1;
+              final earnedWood = 1;
+              final earnedStones = minute % 2 == 0 ? 1 : 0;
+
+              final List<String> rewardsText = [];
+              if (earnedCoins > 0) rewardsText.add('+$earnedCoins Coin');
+              if (earnedWood > 0) rewardsText.add('+$earnedWood Wood');
+              if (earnedStones > 0) rewardsText.add('+$earnedStones Stone');
+
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(
+                    children: [
+                      const Icon(Icons.monetization_on, color: Colors.amber),
+                      SizedBox(width: 2.w),
+                      Expanded(
+                        child: Text(
+                          'Minute $minute: ${rewardsText.join(', ')} 🪙',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                  backgroundColor: const Color(0xFF1B5E20),
+                  duration: const Duration(seconds: 3),
+                  behavior: SnackBarBehavior.floating,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  margin: EdgeInsets.only(bottom: 80.h, left: 5.w, right: 5.w),
+                ),
+              );
+            }
             // Save state every 5 seconds and update backend session
             if (_totalSeconds % 5 == 0) {
               await _saveTimerState();
               await _updateBackendSession();
             }
           } else {
+            final fullDurationSeconds = _initialDurationMinutes * 60;
             _stopTimer();
             await _saveTimerState();
-            await _completeBackendSession();
-            _showCompletionDialog();
+            await _completeBackendSession(
+              manualTotalSeconds: fullDurationSeconds,
+            );
           }
         });
       }
@@ -723,25 +818,60 @@ class _FocusTimeViewState extends State<FocusTimeView>
   }
 
   /// Complete backend session when timer ends
-  Future<void> _completeBackendSession() async {
-    if (_sessionId == null) return;
+  Future<void> _completeBackendSession({int? manualTotalSeconds}) async {
+    // 1. Calculate elapsed seconds based on current timer state or manual override
+    final completedSeconds =
+        manualTotalSeconds ?? ((_initialDurationMinutes * 60) - _totalSeconds);
+
+    // 2. Only complete if there's actual time elapsed (at least 1 second)
+    if (completedSeconds <= 0) {
+      print('⚠️ No time elapsed, skipping session completion');
+      // Clear session ID even if no time elapsed
+      if (mounted) {
+        setState(() {
+          _sessionId = null;
+        });
+        // Navigate away if manually stopped with 0 time
+        Navigator.pushReplacementNamed(context, AppRoutes.castleGrounds);
+      }
+      await _storageService.remove('timer_session_id');
+      return;
+    }
+
     try {
       final focusTimeViewModel = Provider.of<FocusTimeViewModel>(
         context,
         listen: false,
       );
-      // Calculate elapsed seconds based on current timer state
-      final completedSeconds = (_initialDurationMinutes * 60) - _totalSeconds;
 
-      // Only complete if there's actual time elapsed (at least 1 second)
-      if (completedSeconds <= 0) {
-        print('⚠️ No time elapsed, skipping session completion');
-        // Clear session ID even if no time elapsed
-        setState(() {
-          _sessionId = null;
-        });
-        await _storageService.remove('timer_session_id');
-        return;
+      // 3. Handle missing session ID (Lazy Creation)
+      if (_sessionId == null) {
+        print('⚠️ No session ID found, attempting to create one lazily...');
+        final session = await focusTimeViewModel.createSession(
+          _initialDurationMinutes,
+        );
+        if (session != null) {
+          setState(() {
+            _sessionId = session.id;
+          });
+          print('✅ Lazy session creation successful: $_sessionId');
+        } else {
+          print('❌ Failed to create session lazily. Cannot save progress.');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Could not save session. Check internet connection.',
+                ),
+                backgroundColor: Colors.red,
+              ),
+            );
+            // Navigate away safely as we can't do anything
+            Navigator.pushReplacementNamed(context, AppRoutes.castleGrounds);
+          }
+          await _storageService.remove('timer_session_id');
+          return;
+        }
       }
 
       print(
@@ -751,6 +881,10 @@ class _FocusTimeViewState extends State<FocusTimeView>
         sessionId: _sessionId!,
         totalSeconds: completedSeconds,
       );
+
+      if (mounted) {
+        _showCompletionDialog(rewards); // Pass rewards to dialog
+      }
 
       if (rewards != null) {
         print('✅ Session completed! Rewards: $rewards');
@@ -763,62 +897,92 @@ class _FocusTimeViewState extends State<FocusTimeView>
           coinsEarned: rewards['coins'] ?? 0,
           xpEarned: rewards['xp'] ?? 0,
         );
-
-        // Refresh castle and profile data to show updated stats
-        final castleViewModel = Provider.of<CastleGroundsViewModel>(
-          context,
-          listen: false,
-        );
-        final profileViewModel = Provider.of<ProfileViewModel>(
-          context,
-          listen: false,
-        );
-        final treasureChestViewModel = Provider.of<TreasureChestViewModel>(
-          context,
-          listen: false,
-        );
-
-        final inventoryViewModel = Provider.of<InventoryViewModel>(
-          context,
-          listen: false,
-        );
-
-        // Update treasure chest progress (500 minutes goal)
-        final elapsedMinutes = completedSeconds / 60.0;
-        await treasureChestViewModel.addFocusMinutes(elapsedMinutes);
-
-        await Future.wait([
-          castleViewModel.getMyCastle(),
-          profileViewModel.refresh(),
-          inventoryViewModel.getInventory(), // Refresh inventory for Wood/Stone
-        ]);
-
-        // Notify listeners to update UI with new data
-        if (mounted) {
-          setState(() {
-            // Force UI rebuild to show updated resources
-          });
-        }
       } else {
-        print('⚠️ Session completion returned no rewards');
+        print(
+          '⚠️ Session completion returned no rewards (likely short duration)',
+        );
+      }
+
+      // REFRESH DATA REGARDLESS OF REWARDS
+      // This ensures tracking updates even for short sessions
+      final castleViewModel = Provider.of<CastleGroundsViewModel>(
+        context,
+        listen: false,
+      );
+      final profileViewModel = Provider.of<ProfileViewModel>(
+        context,
+        listen: false,
+      );
+      final treasureChestViewModel = Provider.of<TreasureChestViewModel>(
+        context,
+        listen: false,
+      );
+
+      final inventoryViewModel = Provider.of<InventoryViewModel>(
+        context,
+        listen: false,
+      );
+
+      // Treasure chest progress is now handled automatically by the backend
+      // during the completeSession call for better accuracy and to prevent double-counting.
+
+      await Future.wait([
+        castleViewModel.getMyCastle(),
+        profileViewModel.refresh(),
+        treasureChestViewModel.refresh(),
+        inventoryViewModel.getInventory(), // Refresh inventory for Wood/Stone
+      ]);
+
+      // Notify listeners to update UI with new data
+      if (mounted) {
+        setState(() {
+          // Force UI rebuild to show updated resources
+        });
       }
 
       // Clear session ID
-      setState(() {
-        _sessionId = null;
-      });
+      if (mounted) {
+        setState(() {
+          _sessionId = null;
+        });
+      }
       await _storageService.remove('timer_session_id');
     } catch (e) {
       print('⚠️ Failed to complete backend session: $e');
       // Continue even if completion fails, but clear session ID
-      setState(() {
-        _sessionId = null;
-      });
+      if (mounted) {
+        setState(() {
+          _sessionId = null;
+        });
+        // Navigate away on error to prevent being stuck
+        Navigator.pushReplacementNamed(context, AppRoutes.castleGrounds);
+      }
       await _storageService.remove('timer_session_id');
     }
   }
 
-  void _showCompletionDialog() {
+  void _showCompletionDialog(Map<String, dynamic>? rewards) {
+    // Construct rewards string
+    String rewardsMessage = 'Fantastic focus! Habit strength increased.';
+    if (rewards != null) {
+      final coins = rewards['coins'] as int? ?? 0;
+      final wood = rewards['wood'] as int? ?? 0;
+      final stones = rewards['stones'] as int? ?? 0;
+      final xp = rewards['xp'] as int? ?? 0;
+
+      if (coins > 0 || wood > 0 || stones > 0 || xp > 0) {
+        final List<String> parts = [];
+        if (coins > 0) parts.add('$coins Coins');
+        if (wood > 0) parts.add('$wood Wood');
+        if (stones > 0) parts.add('$stones Stones');
+        if (xp > 0) parts.add('$xp XP');
+
+        if (parts.isNotEmpty) {
+          rewardsMessage = 'Great job! You earned ${parts.join(', ')}!';
+        }
+      }
+    }
+
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -853,13 +1017,37 @@ class _FocusTimeViewState extends State<FocusTimeView>
             ),
           ],
         ),
-        content: Text(
-          'Great job! You\'ve completed your focus session and earned rewards!',
-          style: TextStyle(
-            fontSize: 14.sp,
-            color: AppColors.textSecondary,
-            height: 1.5,
-          ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              rewardsMessage,
+              style: TextStyle(
+                fontSize: 16.sp,
+                fontWeight: FontWeight.bold,
+                color: const Color(0xFF1B5E20),
+                height: 1.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: 2.h),
+            if (rewards == null || (rewards['coins'] as int? ?? 0) == 0)
+              Text(
+                'Tip: Focus for more than 5 minutes to earn virtual rewards.',
+                style: TextStyle(
+                  fontSize: 13.sp,
+                  color: Colors.grey.shade600,
+                  fontStyle: FontStyle.italic,
+                ),
+                textAlign: TextAlign.center,
+              )
+            else
+              Text(
+                'Treasures await those who persist. Keep building your kingdom!',
+                style: TextStyle(fontSize: 13.sp, color: Colors.grey.shade600),
+                textAlign: TextAlign.center,
+              ),
+          ],
         ),
         actions: [
           Padding(
@@ -1483,20 +1671,18 @@ class _FocusTimeViewState extends State<FocusTimeView>
                               Material(
                                 color: Colors.transparent,
                                 child: InkWell(
-                                  onTap: () {
-                                    // Fire and forget (or at least parallelize) the completion
+                                  onTap: () async {
+                                    // Stop user interaction while processing
                                     if (_sessionId != null && _isRunning) {
+                                      _timer
+                                          ?.cancel(); // Stop ticking immediately
                                       // Force completion in background while we navigate
-                                      _completeBackendSession();
+                                      await _completeBackendSession();
                                     }
                                     _stopTimer();
                                     _saveTimerState();
-                                    if (mounted) {
-                                      Navigator.pushReplacementNamed(
-                                        context,
-                                        AppRoutes.castleGrounds,
-                                      );
-                                    }
+                                    // Navigation is now handled by _completeBackendSession => _showCompletionDialog
+                                    // or fallback navigation in _completeBackendSession
                                   },
                                   borderRadius: BorderRadius.circular(35.sp),
                                   child: Container(

@@ -7,6 +7,7 @@ import '../../../routes/app_routes.dart';
 import '../../authentication/viewmodels/auth_viewmodel.dart';
 import '../viewmodels/castle_grounds_viewmodel.dart';
 import '../../profile/viewmodels/profile_viewmodel.dart';
+import '../../settings/viewmodels/settings_viewmodel.dart';
 
 class CastleGroundsView extends StatefulWidget {
   const CastleGroundsView({super.key});
@@ -15,7 +16,10 @@ class CastleGroundsView extends StatefulWidget {
   State<CastleGroundsView> createState() => _CastleGroundsViewState();
 }
 
-class _CastleGroundsViewState extends State<CastleGroundsView> {
+class _CastleGroundsViewState extends State<CastleGroundsView>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _floatingController;
+
   @override
   void initState() {
     super.initState();
@@ -35,6 +39,18 @@ class _CastleGroundsViewState extends State<CastleGroundsView> {
       castleViewModel.getMyCastle();
       profileViewModel.loadProfile();
     });
+
+    // Initialize floating animation controller
+    _floatingController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    )..repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _floatingController.dispose();
+    super.dispose();
   }
 
   @override
@@ -87,19 +103,31 @@ class _CastleGroundsViewState extends State<CastleGroundsView> {
                   builder: (context, authViewModel, child) {
                     final user = authViewModel.user;
                     return IconButton(
-                      icon: CircleAvatar(
-                        backgroundColor: Colors.white,
-                        radius: 16,
-                        backgroundImage: user?.avatar != null
-                            ? NetworkImage(user!.avatar!)
-                            : null,
-                        child: user?.avatar == null
-                            ? const Icon(
+                      icon: Container(
+                        width: 32,
+                        height: 32,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white,
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: user?.avatar != null
+                            ? Image.network(
+                                user!.avatar!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const Icon(
+                                    Icons.person,
+                                    color: Color(0xFFA6B57E),
+                                    size: 18,
+                                  );
+                                },
+                              )
+                            : const Icon(
                                 Icons.person,
                                 color: Color(0xFFA6B57E),
                                 size: 18,
-                              )
-                            : null,
+                              ),
                       ),
                       onPressed: () {
                         Navigator.pushNamed(context, AppRoutes.profile);
@@ -185,7 +213,6 @@ class _CastleGroundsViewState extends State<CastleGroundsView> {
                               final progress =
                                   (castle?.progressPercentage ?? 0.0) / 100.0;
                               final level = castle?.level ?? 1;
-                              final levelName = castle?.levelName ?? 'CASTLE';
                               final nextLevel = castle?.nextLevel ?? level + 1;
 
                               return Container(
@@ -194,7 +221,7 @@ class _CastleGroundsViewState extends State<CastleGroundsView> {
                                   crossAxisAlignment: CrossAxisAlignment.center,
                                   children: [
                                     Text(
-                                      'LEVEL $level $levelName',
+                                      'LEVEL $level', // simplified to avoid duplication
                                       style: TextStyle(
                                         fontSize: 14.sp,
                                         fontWeight: FontWeight.bold,
@@ -267,27 +294,26 @@ class _CastleGroundsViewState extends State<CastleGroundsView> {
                             },
                           ),
                           SizedBox(height: 4.h),
-                          // Action Buttons - matching screenshot layout and icons
                           Padding(
                             padding: EdgeInsets.symmetric(horizontal: 2.w),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
                                 _buildCircularActionButton(
-                                  Icons.build,
-                                  'BUILD BASE',
-                                  () {
+                                  label: 'BUILD BASE',
+                                  imagePath: 'assets/images/house.png',
+                                  onTap: () {
                                     Navigator.pushNamed(
                                       context,
                                       AppRoutes.baseBuilding,
                                     );
                                   },
                                 ),
-                                // Removed VIEW CASTLE button
                                 _buildCircularActionButton(
-                                  Icons.card_giftcard,
-                                  'REWARDS',
-                                  () {
+                                  label: 'REWARDS',
+                                  imagePath:
+                                      'assets/images/treasure_chest_closed.png',
+                                  onTap: () {
                                     Navigator.pushNamed(
                                       context,
                                       AppRoutes.treasureChest,
@@ -295,9 +321,9 @@ class _CastleGroundsViewState extends State<CastleGroundsView> {
                                   },
                                 ),
                                 _buildCircularActionButton(
-                                  Icons.emoji_events,
-                                  'LEADERBOARD',
-                                  () {
+                                  label: 'LEADERBOARD',
+                                  imagePath: 'assets/images/leaderboard.png',
+                                  onTap: () {
                                     Navigator.pushNamed(
                                       context,
                                       AppRoutes.leaderboard,
@@ -305,9 +331,9 @@ class _CastleGroundsViewState extends State<CastleGroundsView> {
                                   },
                                 ),
                                 _buildCircularActionButton(
-                                  Icons.access_time,
-                                  'FOCUS',
-                                  () {
+                                  label: 'FOCUS',
+                                  imagePath: 'assets/images/focus.png',
+                                  onTap: () {
                                     Navigator.pushNamed(
                                       context,
                                       AppRoutes.focusTime,
@@ -321,45 +347,67 @@ class _CastleGroundsViewState extends State<CastleGroundsView> {
                           // Start Focus Button - same size as GO TO BASE button
                           Padding(
                             padding: EdgeInsets.symmetric(horizontal: 4.w),
-                            child: Material(
-                              color: Colors.lightBlue.shade300,
-                              borderRadius: BorderRadius.circular(
-                                20.sp,
-                              ), // More rounded corners
-                              child: InkWell(
-                                borderRadius: BorderRadius.circular(
-                                  20.sp,
-                                ), // More rounded corners
-                                onTap: () {
-                                  Navigator.pushNamed(
-                                    context,
-                                    AppRoutes.focusTime,
-                                  );
-                                },
-                                child: Container(
-                                  padding: EdgeInsets.symmetric(
-                                    horizontal: 4.w,
-                                    vertical: 1.5.h,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(20.sp),
+                                gradient: const LinearGradient(
+                                  colors: [
+                                    Color(0xFFFFD700), // AppColors.coinGold
+                                    Color(0xFFD4AF37), // Metallic Gold
+                                  ],
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(
+                                      0xFFFFD700,
+                                    ).withOpacity(0.3),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 4),
                                   ),
-                                  child: Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.access_time,
-                                        color: Colors.white,
-                                        size: 20.sp,
-                                      ),
-                                      SizedBox(width: 2.w),
-                                      Text(
-                                        'START FOCUS',
-                                        style: TextStyle(
+                                ],
+                              ),
+                              child: Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(20.sp),
+                                  onTap: () {
+                                    Navigator.pushNamed(
+                                      context,
+                                      AppRoutes.focusTime,
+                                    );
+                                  },
+                                  child: Container(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 4.w,
+                                      vertical: 1.5.h,
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(
+                                          Icons.military_tech,
                                           color: Colors.white,
-                                          fontSize: 14.sp,
-                                          fontWeight: FontWeight.bold,
-                                          letterSpacing: 0.5,
+                                          size: 20.sp,
+                                          shadows: const [
+                                            Shadow(
+                                              color: Colors.white54,
+                                              blurRadius: 8,
+                                            ),
+                                          ],
                                         ),
-                                      ),
-                                    ],
+                                        SizedBox(width: 2.w),
+                                        Text(
+                                          'START FOCUS SESSION',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 14.sp,
+                                            fontWeight: FontWeight.w900,
+                                            letterSpacing: 1,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ),
                               ),
@@ -404,38 +452,99 @@ class _CastleGroundsViewState extends State<CastleGroundsView> {
     );
   }
 
-  Widget _buildCircularActionButton(
-    IconData icon,
-    String label,
-    VoidCallback onTap,
-  ) {
+  Widget _buildCircularActionButton({
+    required String label,
+    required VoidCallback onTap,
+    String? imagePath,
+    IconData? icon,
+    Color? iconColor,
+  }) {
     return GestureDetector(
       onTap: onTap,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 16.w,
-            height: 16.w,
-            decoration: BoxDecoration(
-              color: AppColors.coinGold, // Yellow/gold color
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              icon,
-              color: const Color.fromARGB(255, 255, 255, 255), // White icon
-              size: 22.sp,
+          AnimatedBuilder(
+            animation: _floatingController,
+            builder: (context, child) {
+              return Transform.translate(
+                offset: Offset(0, _floatingController.value * 6),
+                child: child,
+              );
+            },
+            child: Container(
+              width: 18.w,
+              height: 18.w,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Colors.white.withOpacity(0.2),
+                    Colors.white.withOpacity(0.05),
+                  ],
+                ),
+                border: Border.all(
+                  color: Colors.white.withOpacity(0.3),
+                  width: 1.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 8,
+                    offset: const Offset(0, 4),
+                  ),
+                  BoxShadow(
+                    color: (iconColor ?? AppColors.coinGold).withOpacity(0.2),
+                    blurRadius: 12,
+                    spreadRadius: 1,
+                  ),
+                ],
+              ),
+              child: ClipOval(
+                child: imagePath != null
+                    ? Padding(
+                        padding: EdgeInsets.all(3.w),
+                        child: Image.asset(imagePath, fit: BoxFit.contain),
+                      )
+                    : Container(
+                        padding: EdgeInsets.all(2.w),
+                        decoration: BoxDecoration(
+                          gradient: RadialGradient(
+                            colors: [
+                              (iconColor ?? Colors.white).withOpacity(0.3),
+                              Colors.transparent,
+                            ],
+                          ),
+                        ),
+                        child: Icon(
+                          icon,
+                          color: iconColor ?? Colors.white,
+                          size: 24.sp,
+                          shadows: [
+                            Shadow(
+                              color: (iconColor ?? Colors.white).withOpacity(
+                                0.5,
+                              ),
+                              blurRadius: 10,
+                            ),
+                          ],
+                        ),
+                      ),
+              ),
             ),
           ),
           const SizedBox(height: 8),
           Text(
             label,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 9,
-              fontWeight: FontWeight.w600,
+            style: TextStyle(
+              fontSize: 10.sp,
+              fontWeight: FontWeight.w900,
               color: Colors.white,
-              shadows: [
+              letterSpacing: 0.5,
+              shadows: const [
                 Shadow(
                   color: Colors.black45,
                   offset: Offset(0, 1),
@@ -450,158 +559,186 @@ class _CastleGroundsViewState extends State<CastleGroundsView> {
   }
 
   Widget _buildDrawer(BuildContext context) {
-    final authViewModel = Provider.of<AuthViewModel>(context, listen: false);
-    final user = authViewModel.user;
+    return Consumer<SettingsViewModel>(
+      builder: (context, settingsViewModel, child) {
+        final authViewModel = Provider.of<AuthViewModel>(
+          context,
+          listen: false,
+        );
+        final user = authViewModel.user;
+        final isDark = settingsViewModel.darkTheme;
 
-    return Drawer(
-      backgroundColor: const Color(0xFFA6B57E),
-      child: SafeArea(
-        child: Column(
-          children: [
-            // Drawer Header with User Info
-            Container(
-              width: double.infinity,
-              padding: EdgeInsets.all(4.w),
-              decoration: BoxDecoration(
-                color: const Color(0xFF95A56D),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                children: [
-                  CircleAvatar(
-                    radius: 30.sp,
-                    backgroundColor: Colors.white,
-                    backgroundImage: user?.avatar != null
-                        ? NetworkImage(user!.avatar!)
-                        : null,
-                    child: user?.avatar == null
-                        ? Icon(
-                            Icons.person,
-                            size: 30.sp,
-                            color: const Color(0xFFA6B57E),
-                          )
-                        : null,
-                  ),
-                  SizedBox(height: 1.h),
-                  Text(
-                    user?.name ?? 'User',
-                    style: TextStyle(
-                      fontSize: 18.sp,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                  if (user?.email != null) ...[
-                    SizedBox(height: 0.5.h),
-                    Text(
-                      user!.email!,
-                      style: TextStyle(
-                        fontSize: 12.sp,
-                        color: Colors.white.withOpacity(0.8),
+        return Drawer(
+          backgroundColor: isDark
+              ? const Color(0xFF1E1E1E)
+              : const Color(0xFFA6B57E),
+          child: SafeArea(
+            child: Column(
+              children: [
+                // Drawer Header with User Info
+                Container(
+                  width: double.infinity,
+                  padding: EdgeInsets.all(4.w),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? const Color(0xFF2C3E50)
+                        : const Color(0xFF95A56D),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ],
-              ),
-            ),
+                    ],
+                  ),
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 60.sp,
+                        height: 60.sp,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: Colors.white,
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: user?.avatar != null
+                            ? Image.network(
+                                user!.avatar!,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return Icon(
+                                    Icons.person,
+                                    size: 30.sp,
+                                    color: isDark
+                                        ? const Color(0xFF2C3E50)
+                                        : const Color(0xFFA6B57E),
+                                  );
+                                },
+                              )
+                            : Icon(
+                                Icons.person,
+                                size: 30.sp,
+                                color: isDark
+                                    ? const Color(0xFF2C3E50)
+                                    : const Color(0xFFA6B57E),
+                              ),
+                      ),
+                      SizedBox(height: 1.h),
+                      Text(
+                        user?.name ?? 'User',
+                        style: TextStyle(
+                          fontSize: 18.sp,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      if (user?.email != null) ...[
+                        SizedBox(height: 0.5.h),
+                        Text(
+                          user!.email!,
+                          style: TextStyle(
+                            fontSize: 12.sp,
+                            color: Colors.white.withOpacity(0.8),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
 
-            // Menu Items
-            Expanded(
-              child: ListView(
-                padding: EdgeInsets.zero,
-                children: [
-                  _buildDrawerItem(
-                    context,
-                    icon: Icons.home,
-                    title: 'Castle Grounds',
-                    onTap: () {
-                      Navigator.pop(context);
-                      // Already on castle grounds, do nothing
-                    },
+                // Menu Items
+                Expanded(
+                  child: ListView(
+                    padding: EdgeInsets.zero,
+                    children: [
+                      _buildDrawerItem(
+                        context,
+                        icon: Icons.home,
+                        title: 'Castle Grounds',
+                        onTap: () {
+                          Navigator.pop(context);
+                          // Already on castle grounds, do nothing
+                        },
+                      ),
+                      _buildDrawerItem(
+                        context,
+                        icon: Icons.person,
+                        title: 'Profile',
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.pushNamed(context, AppRoutes.profile);
+                        },
+                      ),
+                      _buildDrawerItem(
+                        context,
+                        icon: Icons.access_time,
+                        title: 'Focus Time',
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.pushNamed(context, AppRoutes.focusTime);
+                        },
+                      ),
+                      _buildDrawerItem(
+                        context,
+                        icon: Icons.card_giftcard,
+                        title: 'Treasure Chest',
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.pushNamed(context, AppRoutes.treasureChest);
+                        },
+                      ),
+                      _buildDrawerItem(
+                        context,
+                        icon: Icons.emoji_events,
+                        title: 'Leaderboard',
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.pushNamed(context, AppRoutes.leaderboard);
+                        },
+                      ),
+                      Divider(
+                        color: Colors.white.withOpacity(0.3),
+                        height: 1,
+                        thickness: 1,
+                        indent: 4.w,
+                        endIndent: 4.w,
+                      ),
+                      _buildDrawerItem(
+                        context,
+                        icon: Icons.settings,
+                        title: 'Settings',
+                        onTap: () {
+                          Navigator.pop(context);
+                          Navigator.pushNamed(context, AppRoutes.profile);
+                        },
+                      ),
+                      _buildDrawerItem(
+                        context,
+                        icon: Icons.logout,
+                        title: 'Logout',
+                        onTap: () async {
+                          Navigator.pop(context);
+                          await authViewModel.logout();
+                          if (context.mounted) {
+                            Navigator.pushNamedAndRemoveUntil(
+                              context,
+                              AppRoutes.welcome,
+                              (route) => false,
+                            );
+                          }
+                        },
+                        isDestructive: true,
+                      ),
+                    ],
                   ),
-                  _buildDrawerItem(
-                    context,
-                    icon: Icons.person,
-                    title: 'Profile',
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.pushNamed(context, AppRoutes.profile);
-                    },
-                  ),
-                  _buildDrawerItem(
-                    context,
-                    icon: Icons.access_time,
-                    title: 'Focus Time',
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.pushNamed(context, AppRoutes.focusTime);
-                    },
-                  ),
-                  _buildDrawerItem(
-                    context,
-                    icon: Icons.card_giftcard,
-                    title: 'Treasure Chest',
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.pushNamed(context, AppRoutes.treasureChest);
-                    },
-                  ),
-                  _buildDrawerItem(
-                    context,
-                    icon: Icons.emoji_events,
-                    title: 'Leaderboard',
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.pushNamed(context, AppRoutes.leaderboard);
-                    },
-                  ),
-                  Divider(
-                    color: Colors.white.withOpacity(0.3),
-                    height: 1,
-                    thickness: 1,
-                    indent: 4.w,
-                    endIndent: 4.w,
-                  ),
-                  _buildDrawerItem(
-                    context,
-                    icon: Icons.settings,
-                    title: 'Settings',
-                    onTap: () {
-                      Navigator.pop(context);
-                      Navigator.pushNamed(context, AppRoutes.profile);
-                    },
-                  ),
-                  _buildDrawerItem(
-                    context,
-                    icon: Icons.logout,
-                    title: 'Logout',
-                    onTap: () async {
-                      Navigator.pop(context);
-                      await authViewModel.logout();
-                      if (context.mounted) {
-                        Navigator.pushNamedAndRemoveUntil(
-                          context,
-                          AppRoutes.welcome,
-                          (route) => false,
-                        );
-                      }
-                    },
-                    isDestructive: true,
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 

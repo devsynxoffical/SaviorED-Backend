@@ -404,7 +404,10 @@ class _SignUpViewState extends State<SignUpView> {
           hintText: hint,
           hintStyle: TextStyle(color: Colors.grey[400], fontSize: 16.sp),
 
-          contentPadding: EdgeInsets.symmetric(vertical: 0, horizontal: 0), // Vertically centered
+          contentPadding: EdgeInsets.symmetric(
+            vertical: 0,
+            horizontal: 0,
+          ), // Vertically centered
 
           border: InputBorder.none,
           enabledBorder: InputBorder.none,
@@ -448,7 +451,9 @@ class _SignUpViewState extends State<SignUpView> {
               ToastService.showError(
                 context,
                 title: "Google Sign In",
-                description: authViewModel.errorMessage ?? "Google sign in is not available. Please use email/password.",
+                description:
+                    authViewModel.errorMessage ??
+                    "Google sign in is not available. Please use email/password.",
               );
             }
           },

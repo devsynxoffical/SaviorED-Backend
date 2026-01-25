@@ -4,6 +4,8 @@ import 'package:responsive_sizer/responsive_sizer.dart';
 import '../features/authentication/viewmodels/auth_viewmodel.dart';
 import '../routes/app_routes.dart';
 import '../theme/app_theme.dart';
+import '../features/settings/viewmodels/settings_viewmodel.dart';
+import 'no_internet_wrapper.dart';
 
 /// App Initializer - Waits for auth initialization and determines initial route
 class AppInitializer extends StatefulWidget {
@@ -46,10 +48,8 @@ class _AppInitializerState extends State<AppInitializer> {
 
       if (!mounted) return;
 
-      // Determine initial route based on authentication
-      final initialRoute = authViewModel.isAuthenticated
-          ? AppRoutes.castleGrounds
-          : AppRoutes.splash;
+      // ALWAYS start with Splash screen, even if authenticated
+      final initialRoute = AppRoutes.splash;
 
       print('AppInitializer: Setting initial route to $initialRoute');
 
@@ -83,32 +83,39 @@ class _AppInitializerState extends State<AppInitializer> {
     );
     return ResponsiveSizer(
       builder: (context, orientation, screenType) {
-        if (!_isInitialized || _initialRoute == null) {
-          // Show a loading screen while initializing
-          return MaterialApp(
-            title: 'SaviorEd',
-            debugShowCheckedModeBanner: false,
-            theme: AppTheme.lightTheme,
-            darkTheme: AppTheme.darkTheme,
-            themeMode: ThemeMode.light,
-            initialRoute: '/',
-            routes: {
-              '/': (context) => const Scaffold(
-                body: Center(child: CircularProgressIndicator()),
-              ),
-            },
-          );
-        }
+        return Consumer<SettingsViewModel>(
+          builder: (context, settingsViewModel, child) {
+            if (!_isInitialized || _initialRoute == null) {
+              // Show a loading screen while initializing
+              return MaterialApp(
+                title: 'SaviorEd',
+                debugShowCheckedModeBanner: false,
+                theme: AppTheme.lightTheme(settingsViewModel.colorScheme),
+                darkTheme: AppTheme.darkTheme(settingsViewModel.colorScheme),
+                themeMode: settingsViewModel.themeMode,
+                initialRoute: '/',
+                routes: {
+                  '/': (context) => const Scaffold(
+                    body: Center(child: CircularProgressIndicator()),
+                  ),
+                },
+              );
+            }
 
-        return MaterialApp(
-          key: const ValueKey('main_app'),
-          title: 'SaviorEd',
-          debugShowCheckedModeBanner: false,
-          theme: AppTheme.lightTheme,
-          darkTheme: AppTheme.darkTheme,
-          themeMode: ThemeMode.light,
-          initialRoute: _initialRoute ?? AppRoutes.splash,
-          routes: AppRoutes.allRoutes,
+            return MaterialApp(
+              key: const ValueKey('main_app'),
+              title: 'SaviorEd',
+              debugShowCheckedModeBanner: false,
+              theme: AppTheme.lightTheme(settingsViewModel.colorScheme),
+              darkTheme: AppTheme.darkTheme(settingsViewModel.colorScheme),
+              themeMode: settingsViewModel.themeMode,
+              initialRoute: _initialRoute ?? AppRoutes.splash,
+              routes: AppRoutes.allRoutes,
+              builder: (context, child) {
+                return NoInternetWrapper(child: child!);
+              },
+            );
+          },
         );
       },
     );

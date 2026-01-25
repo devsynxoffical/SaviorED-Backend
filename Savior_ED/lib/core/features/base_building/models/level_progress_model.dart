@@ -1,4 +1,6 @@
+import 'dart:math' as math;
 import 'package:equatable/equatable.dart';
+import 'level_requirements_model.dart';
 
 class LevelProgress extends Equatable {
   final int level;
@@ -27,17 +29,28 @@ class LevelProgress extends Equatable {
     );
   }
 
-  double calculateCompletionPercentage(int totalRequired) {
-    // Simplified: just based on items placed vs total items required
-    // In a real scenario you'd match against specific requirements
-    if (totalRequired == 0) return 0.0;
+  double calculateCompletionPercentage(LevelRequirements requirements) {
+    if (requirements.requiredItems.isEmpty) return 1.0;
 
-    int totalPlaced = 0;
-    placedItems.forEach((_, count) => totalPlaced += count);
+    int totalNeeded = 0;
+    int totalValidPlaced = 0;
 
-    return (totalPlaced / totalRequired).clamp(0.0, 1.0);
+    for (var req in requirements.requiredItems) {
+      totalNeeded += req.quantity;
+      final actualPlaced = placedItems[req.itemTemplateId] ?? 0;
+      // Only count items required for this level, and only up to the required amount
+      totalValidPlaced += math.min(actualPlaced, req.quantity);
+    }
+
+    if (totalNeeded == 0) return 1.0;
+    return (totalValidPlaced / totalNeeded).clamp(0.0, 1.0);
   }
 
   @override
   List<Object?> get props => [level, unlockedItems, placedItems, isCompleted];
 }
+
+// Added math import at top level or just use min from dart:math if available, 
+// usually easier to just use manual check if min isn't imported.
+// I'll add the import.
+

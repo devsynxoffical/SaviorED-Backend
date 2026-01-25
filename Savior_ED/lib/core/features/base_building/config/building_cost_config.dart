@@ -3,7 +3,7 @@ import '../models/resource_cost_model.dart';
 class BuildingCostConfig {
   static const Map<String, ResourceCost> itemCosts = {
     // Level 1: Foundation
-    'wall_basic': ResourceCost(wood: 25, stone: 5),
+    'cannon_defense': ResourceCost(wood: 40, stone: 0, coins: 20),
     'tower_small': ResourceCost(wood: 60, stone: 20, coins: 10),
     'gate_basic': ResourceCost(wood: 0, stone: 0, coins: 0),
 

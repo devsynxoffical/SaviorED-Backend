@@ -5,6 +5,7 @@ import '../../../widgets/gradient_background.dart';
 import '../../../routes/app_routes.dart';
 import '../../authentication/viewmodels/auth_viewmodel.dart';
 import '../viewmodels/profile_viewmodel.dart';
+import '../../settings/viewmodels/settings_viewmodel.dart';
 
 class ProfileView extends StatefulWidget {
   const ProfileView({super.key});
@@ -14,12 +15,6 @@ class ProfileView extends StatefulWidget {
 }
 
 class _ProfileViewState extends State<ProfileView> {
-  bool _pushNotifications = false;
-  bool _emailNotifications = false;
-  bool _lightMode = false;
-  String _selectedLanguage = 'GMT+1';
-  String _selectedColorScheme = 'blue';
-
   final TextEditingController _nameController = TextEditingController();
 
   @override
@@ -38,7 +33,10 @@ class _ProfileViewState extends State<ProfileView> {
 
   void _loadProfileData() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final profileViewModel = Provider.of<ProfileViewModel>(context, listen: false);
+      final profileViewModel = Provider.of<ProfileViewModel>(
+        context,
+        listen: false,
+      );
       profileViewModel.loadProfile().then((_) {
         // Update name controller with loaded data
         if (profileViewModel.name != null && mounted) {
@@ -50,35 +48,67 @@ class _ProfileViewState extends State<ProfileView> {
 
   @override
   Widget build(BuildContext context) {
-    return GradientBackground(
-      colors: const [Color(0xFFA5D6A7), Color(0xFFE3F2FD)],
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        body: SafeArea(
-          child: Consumer<ProfileViewModel>(
-            builder: (context, profileViewModel, child) {
-              return Column(
+    return Consumer2<ProfileViewModel, SettingsViewModel>(
+      builder: (context, profileViewModel, settingsViewModel, child) {
+        List<Color> gradientColors;
+        if (settingsViewModel.darkTheme) {
+          gradientColors = const [Color(0xFF121212), Color(0xFF2C3E50)];
+        } else {
+          switch (settingsViewModel.colorScheme) {
+            case 'blue':
+              gradientColors = [Colors.blue.shade200, Colors.blue.shade50];
+              break;
+            case 'purple':
+              gradientColors = [Colors.purple.shade200, Colors.purple.shade50];
+              break;
+            case 'green':
+            default:
+              gradientColors = const [Color(0xFFA5D6A7), Color(0xFFE3F2FD)];
+          }
+        }
+
+        return GradientBackground(
+          colors: gradientColors,
+          child: Scaffold(
+            backgroundColor: Colors.transparent,
+            body: SafeArea(
+              child: Column(
                 children: [
                   // Header
                   Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 4.w, vertical: 1.h),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 4.w,
+                      vertical: 1.h,
+                    ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         IconButton(
-                          icon: const Icon(Icons.arrow_back, color: Colors.white),
+                          icon: Icon(
+                            Icons.arrow_back,
+                            color: settingsViewModel.darkTheme
+                                ? Colors.white
+                                : Colors.white,
+                          ),
                           onPressed: () => Navigator.pop(context),
                         ),
-                        const Text(
+                        Text(
                           'Profile',
                           style: TextStyle(
-                            color: Color(0xFF1B5E20),
+                            color: settingsViewModel.darkTheme
+                                ? Colors.white
+                                : Theme.of(context).primaryColor,
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.refresh, color: Colors.white),
+                          icon: Icon(
+                            Icons.refresh,
+                            color: settingsViewModel.darkTheme
+                                ? Colors.white
+                                : Colors.white,
+                          ),
                           onPressed: () async {
                             await profileViewModel.refresh();
                             if (mounted && profileViewModel.name != null) {
@@ -129,7 +159,7 @@ class _ProfileViewState extends State<ProfileView> {
                           // Settings Section
                           Padding(
                             padding: EdgeInsets.symmetric(horizontal: 4.w),
-                            child: _buildSettingsSection(),
+                            child: _buildSettingsSection(settingsViewModel),
                           ),
 
                           SizedBox(height: 3.h),
@@ -145,7 +175,10 @@ class _ProfileViewState extends State<ProfileView> {
                                 borderRadius: BorderRadius.circular(100),
                                 onTap: () async {
                                   final authViewModel =
-                                      Provider.of<AuthViewModel>(context, listen: false);
+                                      Provider.of<AuthViewModel>(
+                                        context,
+                                        listen: false,
+                                      );
                                   await authViewModel.logout();
                                   if (mounted) {
                                     Navigator.pushNamedAndRemoveUntil(
@@ -156,7 +189,9 @@ class _ProfileViewState extends State<ProfileView> {
                                   }
                                 },
                                 child: Container(
-                                  padding: EdgeInsets.symmetric(vertical: 1.5.h),
+                                  padding: EdgeInsets.symmetric(
+                                    vertical: 1.5.h,
+                                  ),
                                   alignment: Alignment.center,
                                   child: Text(
                                     'Log Out',
@@ -177,64 +212,259 @@ class _ProfileViewState extends State<ProfileView> {
                     ),
                   ),
                 ],
-              );
-            },
+              ),
+            ),
           ),
-        ),
-      ),
+        );
+      },
+    );
+  }
+
+  static const List<String> _predefinedAvatars = [
+    'assets/images/avatars/avatar_king.png',
+    'assets/images/avatars/avatar_knight.png',
+    'assets/images/avatars/avatar_wizard.png',
+    'assets/images/avatars/avatar_queen.png',
+    'assets/images/avatars/avatar_archer.png',
+    'assets/images/avatars/avatar_viking.png',
+  ];
+
+  void _showAvatarPicker(ProfileViewModel profileViewModel) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) {
+        return Container(
+          decoration: BoxDecoration(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.3),
+                blurRadius: 20,
+                spreadRadius: 5,
+              ),
+            ],
+          ),
+          padding: EdgeInsets.fromLTRB(5.w, 2.h, 5.w, 5.h),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Handlebar
+              Container(
+                width: 40,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.grey.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              SizedBox(height: 3.h),
+              Text(
+                'Customize Your Hero',
+                style: TextStyle(
+                  fontSize: 18.sp,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              SizedBox(height: 2.h),
+              Text(
+                'MAJESTIC HEROES',
+                style: TextStyle(
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.grey.withOpacity(0.8),
+                  letterSpacing: 1.5,
+                ),
+              ),
+              SizedBox(height: 2.h),
+
+              SizedBox(
+                height: 24.h,
+                child: GridView.builder(
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 3,
+                    mainAxisSpacing: 15,
+                    crossAxisSpacing: 15,
+                  ),
+                  itemCount: _predefinedAvatars.length,
+                  itemBuilder: (context, index) {
+                    final avatarUrl = _predefinedAvatars[index];
+                    final isSelected = profileViewModel.avatar == avatarUrl;
+                    return GestureDetector(
+                      onTap: () async {
+                        // Optimistic Update: Set immediately for instant feel
+                        await profileViewModel.updateProfile(avatar: avatarUrl);
+                        if (mounted) Navigator.pop(context);
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        padding: EdgeInsets.all(isSelected ? 2 : 0),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isSelected
+                                ? Colors.amber.shade400
+                                : Colors.transparent,
+                            width: 3,
+                          ),
+                          boxShadow: isSelected
+                              ? [
+                                  BoxShadow(
+                                    color: Colors.amber.withOpacity(0.3),
+                                    blurRadius: 15,
+                                    spreadRadius: 2,
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.grey.shade100,
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: _buildAvatarImage(avatarUrl),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildAvatarImage(String? url, {double? size}) {
+    if (url == null || url.isEmpty) {
+      return Icon(
+        Icons.person_rounded,
+        size: size != null ? size * 0.6 : 32.sp,
+        color: Colors.grey.shade400,
+      );
+    }
+
+    // Since we now only use local assets for avatars
+    return Image.asset(
+      url,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        debugPrint('❌ Failed to load avatar asset: $url');
+        // Fallback to a default king avatar if specific asset fails
+        return Image.asset(
+          'assets/images/avatars/avatar_king.png',
+          fit: BoxFit.cover,
+        );
+      },
     );
   }
 
   /// Build profile header with avatar, name, email
   Widget _buildProfileHeader(ProfileViewModel profileViewModel) {
     return Container(
-      padding: EdgeInsets.all(4.w),
+      padding: EdgeInsets.all(5.w),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20.sp),
+        color: Theme.of(context).cardTheme.color ?? Colors.white,
+        borderRadius: BorderRadius.circular(24.sp),
+        gradient: LinearGradient(
+          colors: [
+            Colors.white.withOpacity(0.8),
+            Colors.white.withOpacity(0.4),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 15,
+            offset: const Offset(0, 5),
+          ),
+          BoxShadow(
+            color: Colors.blue.withOpacity(0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 35.sp,
-            backgroundColor: Colors.blue.shade100,
-            backgroundImage: profileViewModel.avatar != null
-                ? NetworkImage(profileViewModel.avatar!)
-                : null,
-            child: profileViewModel.avatar == null
-                ? Icon(
-                    Icons.person,
-                    size: 35.sp,
-                    color: Colors.blue.shade700,
-                  )
-                : null,
+          GestureDetector(
+            onTap: () => _showAvatarPicker(profileViewModel),
+            child: Stack(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      colors: [
+                        Colors.lightBlueAccent.shade200,
+                        Colors.purpleAccent.shade200,
+                      ],
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.blue.withOpacity(0.2),
+                        blurRadius: 10,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                  child: Container(
+                    width: 60.sp,
+                    height: 60.sp,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white,
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: _buildAvatarImage(
+                      profileViewModel.avatar,
+                      size: 60.sp,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
-          SizedBox(width: 4.w),
+          SizedBox(width: 5.w),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  profileViewModel.name ?? 'User',
+                  profileViewModel.name ?? 'Guardian',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 22.sp,
-                    fontWeight: FontWeight.bold,
-                    color: const Color(0xFF1B5E20),
+                    fontWeight: FontWeight.w900,
+                    color: Theme.of(context).primaryColor,
                   ),
                 ),
                 SizedBox(height: 0.5.h),
-                Text(
-                  profileViewModel.email ?? '',
-                  style: TextStyle(
-                    fontSize: 14.sp,
-                    color: Colors.grey.shade600,
+                Container(
+                  padding: EdgeInsets.symmetric(
+                    horizontal: 2.w,
+                    vertical: 0.2.h,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.lightBlueAccent.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    profileViewModel.email ?? '',
+                    style: TextStyle(
+                      fontSize: 12.sp,
+                      color: Colors.blueGrey,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
               ],
@@ -250,7 +480,7 @@ class _ProfileViewState extends State<ProfileView> {
     return Container(
       padding: EdgeInsets.all(4.w),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardTheme.color ?? Colors.white,
         borderRadius: BorderRadius.circular(20.sp),
         boxShadow: [
           BoxShadow(
@@ -265,14 +495,18 @@ class _ProfileViewState extends State<ProfileView> {
         children: [
           Row(
             children: [
-              Icon(Icons.analytics, color: const Color(0xFF1B5E20), size: 20.sp),
+              Icon(
+                Icons.analytics,
+                color: Theme.of(context).primaryColor,
+                size: 20.sp,
+              ),
               SizedBox(width: 2.w),
               Text(
                 'Statistics',
                 style: TextStyle(
                   fontSize: 16.sp,
                   fontWeight: FontWeight.bold,
-                  color: const Color(0xFF1B5E20),
+                  color: Theme.of(context).primaryColor,
                 ),
               ),
             ],
@@ -313,7 +547,12 @@ class _ProfileViewState extends State<ProfileView> {
     );
   }
 
-  Widget _buildStatItem(IconData icon, String label, String value, Color color) {
+  Widget _buildStatItem(
+    IconData icon,
+    String label,
+    String value,
+    Color color,
+  ) {
     return Container(
       padding: EdgeInsets.all(3.w),
       decoration: BoxDecoration(
@@ -335,10 +574,7 @@ class _ProfileViewState extends State<ProfileView> {
           SizedBox(height: 0.5.h),
           Text(
             label,
-            style: TextStyle(
-              fontSize: 11.sp,
-              color: Colors.grey.shade600,
-            ),
+            style: TextStyle(fontSize: 11.sp, color: Colors.grey.shade600),
             textAlign: TextAlign.center,
           ),
         ],
@@ -351,7 +587,7 @@ class _ProfileViewState extends State<ProfileView> {
     return Container(
       padding: EdgeInsets.all(4.w),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardTheme.color ?? Colors.white,
         borderRadius: BorderRadius.circular(20.sp),
         boxShadow: [
           BoxShadow(
@@ -366,14 +602,18 @@ class _ProfileViewState extends State<ProfileView> {
         children: [
           Row(
             children: [
-              Icon(Icons.stars, color: const Color(0xFF1B5E20), size: 20.sp),
+              Icon(
+                Icons.stars,
+                color: Theme.of(context).primaryColor,
+                size: 20.sp,
+              ),
               SizedBox(width: 2.w),
               Text(
                 'Level & Progress',
                 style: TextStyle(
                   fontSize: 16.sp,
                   fontWeight: FontWeight.bold,
-                  color: const Color(0xFF1B5E20),
+                  color: Theme.of(context).primaryColor,
                 ),
               ),
             ],
@@ -390,7 +630,7 @@ class _ProfileViewState extends State<ProfileView> {
                     style: TextStyle(
                       fontSize: 24.sp,
                       fontWeight: FontWeight.bold,
-                      color: const Color(0xFF1B5E20),
+                      color: Theme.of(context).primaryColor,
                     ),
                   ),
                   SizedBox(height: 0.5.h),
@@ -485,7 +725,8 @@ class _ProfileViewState extends State<ProfileView> {
                       content: Text(
                         success
                             ? 'Profile updated successfully'
-                            : profileViewModel.errorMessage ?? 'Failed to update profile',
+                            : profileViewModel.errorMessage ??
+                                  'Failed to update profile',
                       ),
                       backgroundColor: success ? Colors.green : Colors.red,
                     ),
@@ -493,7 +734,7 @@ class _ProfileViewState extends State<ProfileView> {
                 }
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF2196F3),
+                backgroundColor: Theme.of(context).primaryColor,
                 padding: EdgeInsets.symmetric(vertical: 1.5.h),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(50),
@@ -515,49 +756,22 @@ class _ProfileViewState extends State<ProfileView> {
   }
 
   /// Build settings section
-  Widget _buildSettingsSection() {
+  Widget _buildSettingsSection(SettingsViewModel settingsViewModel) {
     return Column(
       children: [
         _buildSettingsCard(
-          title: 'Notification Settings',
-          icon: Icons.notifications,
+          title: 'Appearance & Settings',
+          icon: Icons.settings,
           child: Column(
             children: [
-              _buildToggleItem(
-                'Push Notifications',
-                _pushNotifications,
-                (val) => setState(() => _pushNotifications = val),
-              ),
-              SizedBox(height: 1.h),
-              _buildToggleItem(
-                'Email Notifications',
-                _emailNotifications,
-                (val) => setState(() => _emailNotifications = val),
-              ),
-            ],
-          ),
-        ),
-        SizedBox(height: 1.5.h),
-        _buildSettingsCard(
-          title: 'Language & Region Settings',
-          icon: Icons.language,
-          child: Column(
-            children: [
-              _buildLanguageItem(
-                Icons.language,
-                'Language',
-                _selectedLanguage,
-                () {},
-              ),
-              SizedBox(height: 1.h),
               _buildToggleItem(
                 'Light Mode',
-                _lightMode,
-                (val) => setState(() => _lightMode = val),
+                settingsViewModel.darkTheme,
+                (val) => settingsViewModel.setDarkTheme(val),
                 icon: Icons.light_mode,
               ),
               SizedBox(height: 1.h),
-              _buildColorSchemeItem(),
+              _buildColorSchemeItem(settingsViewModel),
             ],
           ),
         ),
@@ -567,47 +781,47 @@ class _ProfileViewState extends State<ProfileView> {
 
   // TEXT FIELD UI
   Widget _buildRoundedTextField({
-  required TextEditingController controller,
-  required String hintText,
-  required IconData icon,
-  bool isPassword = false,
-}) {
-  return Container(
-    decoration: BoxDecoration(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(50),
-      boxShadow: [
-        BoxShadow(
-          color: Colors.black.withOpacity(0.1),
-          blurRadius: 8,
-          offset: const Offset(0, 2),
-        ),
-      ],
-    ),
-    child: TextField(
-      controller: controller,
-      obscureText: isPassword,
-      decoration: InputDecoration(
-        hintText: hintText,
-        prefixIcon: Icon(icon, color: Color(0xFF1B5E20)),
-        filled: true,
-        fillColor: Colors.white, // Same as container background
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(50),
-          borderSide: BorderSide.none,
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(50),
-          borderSide: BorderSide.none,
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(50),
-          borderSide: BorderSide.none,
+    required TextEditingController controller,
+    required String hintText,
+    required IconData icon,
+    bool isPassword = false,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(50),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: TextField(
+        controller: controller,
+        obscureText: isPassword,
+        decoration: InputDecoration(
+          hintText: hintText,
+          prefixIcon: Icon(icon, color: Theme.of(context).primaryColor),
+          filled: true,
+          fillColor: Colors.white, // Same as container background
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(50),
+            borderSide: BorderSide.none,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(50),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(50),
+            borderSide: BorderSide.none,
+          ),
         ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   // SETTINGS CARD
   Widget _buildSettingsCard({
@@ -618,7 +832,7 @@ class _ProfileViewState extends State<ProfileView> {
     return Container(
       padding: EdgeInsets.all(4.w),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).cardTheme.color ?? Colors.white,
         borderRadius: BorderRadius.circular(20.sp),
         boxShadow: [
           BoxShadow(
@@ -634,14 +848,14 @@ class _ProfileViewState extends State<ProfileView> {
           Row(
             children: [
               if (icon != null)
-                Icon(icon, color: const Color(0xFF1B5E20), size: 20.sp),
+                Icon(icon, color: Theme.of(context).primaryColor, size: 20.sp),
               if (icon != null) SizedBox(width: 2.w),
               Text(
                 title,
                 style: TextStyle(
                   fontSize: 16.sp,
                   fontWeight: FontWeight.bold,
-                  color: const Color(0xFF1B5E20),
+                  color: Theme.of(context).primaryColor,
                 ),
               ),
             ],
@@ -662,8 +876,7 @@ class _ProfileViewState extends State<ProfileView> {
   }) {
     return Row(
       children: [
-        if (icon != null)
-          Icon(icon, color: Colors.grey.shade700, size: 20.sp),
+        if (icon != null) Icon(icon, color: Colors.grey.shade700, size: 20.sp),
         if (icon != null) SizedBox(width: 3.w),
         Expanded(
           child: Text(
@@ -680,38 +893,8 @@ class _ProfileViewState extends State<ProfileView> {
     );
   }
 
-  // LANGUAGE ITEM
-  Widget _buildLanguageItem(
-    IconData icon,
-    String label,
-    String value,
-    VoidCallback onTap,
-  ) {
-    return InkWell(
-      onTap: onTap,
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.grey.shade700, size: 20.sp),
-          SizedBox(width: 3.w),
-          Expanded(
-            child: Text(
-              label,
-              style: TextStyle(fontSize: 14.sp, color: Colors.grey.shade700),
-            ),
-          ),
-          Text(
-            value,
-            style: TextStyle(fontSize: 14.sp, color: Colors.grey.shade600),
-          ),
-          SizedBox(width: 2.w),
-          Icon(Icons.chevron_right, color: Colors.grey.shade400),
-        ],
-      ),
-    );
-  }
-
   // COLOR SCHEME
-  Widget _buildColorSchemeItem() {
+  Widget _buildColorSchemeItem(SettingsViewModel settingsViewModel) {
     return Row(
       children: [
         Icon(Icons.dark_mode, color: Colors.grey.shade700, size: 20.sp),
@@ -726,20 +909,20 @@ class _ProfileViewState extends State<ProfileView> {
           children: [
             _buildColorSwatch(
               const Color(0xFF2196F3),
-              _selectedColorScheme == 'blue',
-              () => setState(() => _selectedColorScheme = 'blue'),
+              settingsViewModel.colorScheme == 'blue',
+              () => settingsViewModel.setScheme('blue'),
             ),
             SizedBox(width: 2.w),
             _buildColorSwatch(
               const Color(0xFF81C784),
-              _selectedColorScheme == 'green',
-              () => setState(() => _selectedColorScheme = 'green'),
+              settingsViewModel.colorScheme == 'green',
+              () => settingsViewModel.setScheme('green'),
             ),
             SizedBox(width: 2.w),
             _buildColorSwatch(
               Colors.purple,
-              _selectedColorScheme == 'purple',
-              () => setState(() => _selectedColorScheme = 'purple'),
+              settingsViewModel.colorScheme == 'purple',
+              () => settingsViewModel.setScheme('purple'),
             ),
           ],
         ),
@@ -748,11 +931,7 @@ class _ProfileViewState extends State<ProfileView> {
   }
 
   // COLOR SWATCH
-  Widget _buildColorSwatch(
-    Color color,
-    bool isSelected,
-    VoidCallback onTap,
-  ) {
+  Widget _buildColorSwatch(Color color, bool isSelected, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
       child: Container(

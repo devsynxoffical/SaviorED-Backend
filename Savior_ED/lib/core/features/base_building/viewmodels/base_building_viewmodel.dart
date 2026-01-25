@@ -6,11 +6,12 @@ import '../models/level_progress_model.dart';
 import '../config/level_config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
-
+import '../../../services/storage_service.dart';
 import '../../../services/api_service.dart';
 
 class BaseBuildingViewModel extends ChangeNotifier {
   final ApiService _apiService = ApiService();
+  final StorageService _storageService = StorageService();
 
   bool _isLoading = false;
   String? _errorMessage;
@@ -142,7 +143,10 @@ class BaseBuildingViewModel extends ChangeNotifier {
   bool get isVisitorMode => _isVisitorMode;
   String? get visitorName => _visitorName;
 
-  /// Load base layout from locally saved data
+  // User Session Tracking
+  String? _currentUserId;
+
+  /// Load base layout from locally saved data or backend
   Future<void> loadBase() async {
     if (_isVisitorMode) return; // Don't load local base if in visitor mode
 
@@ -150,8 +154,67 @@ class BaseBuildingViewModel extends ChangeNotifier {
       setLoading(true);
       setError(null);
 
-      final prefs = await SharedPreferences.getInstance();
-      final String? baseData = prefs.getString('saved_base_v1');
+      final userId = _storageService.getString('user_id') ?? 'guest';
+
+      // CRITICAL: Clear state if user changed (e.g. Logout -> Login new user)
+      if (_currentUserId != userId) {
+        print(
+          '🔄 User changed from $_currentUserId to $userId. Resetting base state.',
+        );
+        _placedItems = [];
+        _currentLevel = 1;
+        _currentLevelConfig = LevelConfig.getLevel(1);
+        _levelProgress = null;
+        _currentUserId = userId; // Update tracking ID
+      }
+
+      final baseKey = 'saved_base_${userId}_v1';
+      final levelKey = 'current_level_$userId';
+
+      // 1. Try to fetch from backend first (Source of Truth)
+      try {
+        final response = await _apiService.get('/api/castles/my-castle');
+        if (response.data['success'] == true) {
+          final castleData = response.data['castle'] ?? response.data;
+
+          // Update Resources from Castle Data
+          _resources['coins'] = castleData['coins'] ?? 0;
+          _resources['wood'] = castleData['wood'] ?? 0;
+          _resources['stone'] =
+              castleData['stones'] ?? 0; // Backend uses 'stones'
+
+          final List<dynamic> layoutData =
+              castleData['layout'] ??
+              castleData['placed_items'] ??
+              castleData['placedItems'] ??
+              [];
+
+          // Always update items, even if empty (clears old user data if backend is empty)
+          _placedItems = layoutData
+              .map((item) => PlacedItemModel.fromJson(item))
+              .toList();
+
+          _currentLevel = castleData['level'] ?? 1;
+          _currentLevelConfig = LevelConfig.getLevel(_currentLevel);
+
+          // Update local storage with fresh data
+          final String encoded = jsonEncode(
+            _placedItems.map((item) => item.toJson()).toList(),
+          );
+          await _storageService.saveString(baseKey, encoded);
+          await _storageService.saveInt(levelKey, _currentLevel);
+
+          _updateLevelProgress();
+          setLoading(false);
+          notifyListeners();
+          return; // Successfully loaded from backend
+        }
+      } catch (e) {
+        print('🌐 Backend fetch failed, falling back to local: $e');
+      }
+
+      // 2. Fallback to local storage (user-specific)
+      final String? baseData = _storageService.getString(baseKey);
 
       if (baseData != null) {
         final List<dynamic> decoded = jsonDecode(baseData);
@@ -159,23 +222,22 @@ class BaseBuildingViewModel extends ChangeNotifier {
             .map((item) => PlacedItemModel.fromJson(item))
             .toList();
 
-        _currentLevel = prefs.getInt('current_level') ?? 1;
+        _currentLevel = _storageService.getInt(levelKey) ?? 1;
         _currentLevelConfig = LevelConfig.getLevel(_currentLevel);
       } else {
-        // Initial setup if needed
+        // Fresh start for this specific user
         _placedItems = [];
+        _currentLevel = 1;
+        _currentLevelConfig = LevelConfig.getLevel(1);
       }
 
       _updateLevelProgress();
-
-      // Auto-sync to backend to ensure leaderboard is up to date
-      saveBase();
-
       setLoading(false);
       notifyListeners();
     } catch (e) {
       print('⚠️ Failed to load base: $e');
-      _placedItems = [];
+      // Only clear if we are in a broken state for the CURRENT user
+      // But don't clear if just a network error on existing data
       setLoading(false);
       notifyListeners();
     }
@@ -221,16 +283,34 @@ class BaseBuildingViewModel extends ChangeNotifier {
     loadBase(); // Reload current user's base
   }
 
+  /// Clear all in-memory state (useful on logout)
+  void clearState() {
+    _placedItems = [];
+    _currentLevel = 1;
+    _currentLevelConfig = LevelConfig.getLevel(1);
+    _levelProgress = null;
+    _isPlacementMode = false;
+    _selectedPlacedItemId = null;
+    _selectedDetailTemplateId = null;
+    _selectedItemTemplateId = null;
+    _isVisitorMode = false;
+    _visitorName = null;
+    notifyListeners();
+  }
+
   /// Save base layout to local storage and sync to backend
   Future<void> saveBase() async {
     if (_isVisitorMode) return; // Disable saving in visitor mode
     try {
-      final prefs = await SharedPreferences.getInstance();
+      final userId = _storageService.getString('user_id') ?? 'guest';
+      final baseKey = 'saved_base_${userId}_v1';
+      final levelKey = 'current_level_$userId';
+
       final String encoded = jsonEncode(
         _placedItems.map((item) => item.toJson()).toList(),
       );
-      await prefs.setString('saved_base_v1', encoded);
-      await prefs.setInt('current_level', _currentLevel);
+      await _storageService.saveString(baseKey, encoded);
+      await _storageService.saveInt(levelKey, _currentLevel);
 
       // Sync to live database for Leaderboard view
       await _syncBaseToBackend(encoded);
@@ -239,23 +319,43 @@ class BaseBuildingViewModel extends ChangeNotifier {
     }
   }
 
+  Function(Map<String, dynamic>)? onCastleDataUpdated;
+
   /// Sync base layout to backend
   Future<void> _syncBaseToBackend(String baseData) async {
     try {
       // Decode the string back to JSON object to send proper structure
       final layoutData = jsonDecode(baseData);
 
+      // Calculate completion based on items
+      double progress = 0.0;
+      if (_levelProgress != null) {
+        progress =
+            _levelProgress!.calculateCompletionPercentage(
+              _currentLevelConfig.requirements,
+            ) *
+            100;
+        // Clamp 0-100
+        if (progress > 100) progress = 100;
+      }
+
       final response = await _apiService.put(
         '/api/castles/layout',
         data: {
-          'items': layoutData,
+          'layout': layoutData,
           'level': _currentLevel,
+          'progressPercentage': progress,
           'updatedAt': DateTime.now().toIso8601String(),
         },
       );
 
       if (response.data['success'] == true) {
         print('✅ Base synced to backend successfully.');
+
+        // Notify listener (CastleGroundsViewModel) to update inventory/stock
+        if (response.data['castle'] != null && onCastleDataUpdated != null) {
+          onCastleDataUpdated!(response.data['castle']);
+        }
       } else {
         print('⚠️ Backend sync failed: ${response.data['message']}');
       }

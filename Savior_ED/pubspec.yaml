@@ -20,9 +20,12 @@ dependencies:
   # Networking
   http: ^1.2.2
   dio: ^5.4.1
+  connectivity_plus: ^6.1.1
+  internet_connection_checker_plus: ^2.5.1
   
   # Local Storage
   shared_preferences: ^2.2.3
+  image_picker: ^1.0.7
 
   # 3D Rendering
   vector_math: ^2.1.4
@@ -44,12 +47,20 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: "ic_launcher"
+  ios: true
+  image_path: "assets/images/App-icon.png"
+  min_sdk_android: 21
 
 flutter:
   uses-material-design: true
   
   assets:
     - assets/images/
+    - assets/images/avatars/
     - assets/images/level1/
     - assets/images/focus_container.png
     - assets/images/exit_battle.png
@@ -63,4 +74,3 @@ flutter:
     - assets/images/kingdom_boundary_border.png
     - assets/images/kingdom_boundary_border_wide.png
     - assets/images/kingdom_boundary_final.png
-    - assets/images/level1/

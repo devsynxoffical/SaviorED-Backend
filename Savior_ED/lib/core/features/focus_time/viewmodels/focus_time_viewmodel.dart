@@ -4,7 +4,7 @@ import '../models/focus_time_model.dart';
 
 class FocusTimeViewModel extends ChangeNotifier {
   final ApiService _apiService = ApiService();
-  
+
   bool _isLoading = false;
   String? _errorMessage;
   FocusTimeModel? _currentSession;
@@ -31,9 +31,10 @@ class FocusTimeViewModel extends ChangeNotifier {
       setLoading(true);
       setError(null);
 
-      final response = await _apiService.post('/api/focus-sessions', data: {
-        'durationMinutes': durationMinutes,
-      });
+      final response = await _apiService.post(
+        '/api/focus-sessions',
+        data: {'durationMinutes': durationMinutes},
+      );
 
       if (response.data['success'] == true) {
         final sessionData = response.data['session'];

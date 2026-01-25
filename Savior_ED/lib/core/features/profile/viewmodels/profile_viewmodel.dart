@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import '../../../services/api_service.dart';
@@ -9,7 +10,7 @@ class ProfileViewModel extends ChangeNotifier {
 
   bool _isLoading = false;
   String? _errorMessage;
-  
+
   // User profile data
   String? _userId;
   String? _email;
@@ -82,14 +83,14 @@ class ProfileViewModel extends ChangeNotifier {
 
       if (response.data['success'] == true) {
         final userData = response.data['user'];
-        
+
         _userId = userData['id']?.toString() ?? userData['_id']?.toString();
         _email = userData['email'] ?? '';
         _name = userData['name'];
         _avatar = userData['avatar'];
         _level = (userData['level'] ?? 1) as int;
         _experiencePoints = (userData['experiencePoints'] ?? 0) as int;
-        _totalFocusHours = (userData['totalFocusHours'] ?? 0.0) is int 
+        _totalFocusHours = (userData['totalFocusHours'] ?? 0.0) is int
             ? (userData['totalFocusHours'] as int).toDouble()
             : (userData['totalFocusHours'] ?? 0.0) as double;
         _totalCoins = (userData['totalCoins'] ?? 0) as int;
@@ -108,7 +109,8 @@ class ProfileViewModel extends ChangeNotifier {
     } on DioException catch (e) {
       String errorMessage;
       if (e.response != null) {
-        errorMessage = e.response?.data['message'] ?? 
+        errorMessage =
+            e.response?.data['message'] ??
             'Failed to load profile. Please try again.';
       } else {
         errorMessage = 'Network error. Please check your connection.';
@@ -125,11 +127,18 @@ class ProfileViewModel extends ChangeNotifier {
     }
   }
 
-  /// Update user profile (name, avatar)
+  /// Update user profile (name, avatar) with optimistic UI updates
   Future<bool> updateProfile({String? name, String? avatar}) async {
+    // Save current values for rollback
+    final String? oldName = _name;
+    final String? oldAvatar = _avatar;
+
     try {
-      _setLoading(true);
       _setError(null);
+      // Optimistic Update: Update local state immediately
+      if (name != null) _name = name;
+      if (avatar != null) _avatar = avatar;
+      notifyListeners();
 
       final data = <String, dynamic>{};
       if (name != null) data['name'] = name;
@@ -138,14 +147,73 @@ class ProfileViewModel extends ChangeNotifier {
       final response = await _apiService.put('/api/users/profile', data: data);
 
       if (response.data['success'] == true) {
+        // Confirm with server response
         final userData = response.data['user'];
         _name = userData['name'];
+        _avatar = userData['avatar'];
+        notifyListeners();
+        return true;
+      } else {
+        // Rollback on server failure
+        _name = oldName;
+        _avatar = oldAvatar;
+        _setError(response.data['message'] ?? 'Failed to update profile');
+        notifyListeners();
+        return false;
+      }
+    } on DioException catch (e) {
+      // Rollback on network failure
+      _name = oldName;
+      _avatar = oldAvatar;
+      notifyListeners();
+
+      String errorMessage;
+      if (e.response != null) {
+        errorMessage =
+            e.response?.data['message'] ??
+            'Failed to update profile. Please try again.';
+      } else {
+        errorMessage = 'Network error. Please check your connection.';
+      }
+      _setError(errorMessage);
+      return false;
+    } catch (e) {
+      // Rollback on error
+      _name = oldName;
+      _avatar = oldAvatar;
+      notifyListeners();
+
+      _setError('An error occurred: ${e.toString()}');
+      return false;
+    }
+  }
+
+  /// Upload user avatar image
+  Future<bool> uploadAvatar(String filePath) async {
+    try {
+      _setLoading(true);
+      _setError(null);
+
+      final file = File(filePath);
+      final fileName = file.path.split('/').last;
+
+      final formData = FormData.fromMap({
+        'avatar': await MultipartFile.fromFile(file.path, filename: fileName),
+      });
+
+      final response = await _apiService.post(
+        '/api/users/profile/avatar',
+        data: formData,
+      );
+
+      if (response.data['success'] == true) {
+        final userData = response.data['user'];
         _avatar = userData['avatar'];
         _setLoading(false);
         notifyListeners();
         return true;
       } else {
-        _setError(response.data['message'] ?? 'Failed to update profile');
+        _setError(response.data['message'] ?? 'Failed to upload avatar');
         _setLoading(false);
         notifyListeners();
         return false;
@@ -153,8 +221,9 @@ class ProfileViewModel extends ChangeNotifier {
     } on DioException catch (e) {
       String errorMessage;
       if (e.response != null) {
-        errorMessage = e.response?.data['message'] ?? 
-            'Failed to update profile. Please try again.';
+        errorMessage =
+            e.response?.data['message'] ??
+            'Failed to upload avatar. Please try again.';
       } else {
         errorMessage = 'Network error. Please check your connection.';
       }
@@ -185,4 +254,3 @@ class ProfileViewModel extends ChangeNotifier {
     notifyListeners();
   }
 }
-

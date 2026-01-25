@@ -14,6 +14,7 @@ class CastleGroundsModel extends Equatable {
   final int? nextLevel;
   final String? castleImage;
   final List<PlacedItemModel> placedItems;
+  final Map<String, int> inventory; // Building Stock
   final DateTime? updatedAt;
 
   const CastleGroundsModel({
@@ -28,12 +29,24 @@ class CastleGroundsModel extends Equatable {
     this.nextLevel,
     this.castleImage,
     this.placedItems = const [],
+    this.inventory = const {},
     this.updatedAt,
   });
 
   factory CastleGroundsModel.fromJson(Map<String, dynamic> json) {
     final id = json['id'] ?? json['_id'];
     final castleData = json['castle'] ?? json; // Handle nested response
+
+    // Parse Inventory Map
+    Map<String, int> invMap = {};
+    if (castleData['inventory'] != null) {
+      if (castleData['inventory'] is Map) {
+        (castleData['inventory'] as Map).forEach((key, value) {
+          invMap[key.toString()] = int.tryParse(value.toString()) ?? 0;
+        });
+      }
+    }
+
     return CastleGroundsModel(
       id: id.toString(),
       userId: (castleData['userId'] ?? castleData['user_id'] ?? '').toString(),
@@ -59,6 +72,7 @@ class CastleGroundsModel extends Equatable {
                     PlacedItemModel.fromJson(item as Map<String, dynamic>),
               )
               .toList(),
+      inventory: invMap,
       updatedAt: castleData['updatedAt'] != null
           ? DateTime.parse(castleData['updatedAt'] as String)
           : castleData['updated_at'] != null
@@ -80,6 +94,7 @@ class CastleGroundsModel extends Equatable {
       'next_level': nextLevel,
       'castle_image': castleImage,
       'placed_items': placedItems.map((item) => item.toJson()).toList(),
+      'inventory': inventory,
       'updated_at': updatedAt?.toIso8601String(),
     };
   }
@@ -96,6 +111,7 @@ class CastleGroundsModel extends Equatable {
     int? nextLevel,
     String? castleImage,
     List<PlacedItemModel>? placedItems,
+    Map<String, int>? inventory,
     DateTime? updatedAt,
   }) {
     return CastleGroundsModel(
@@ -110,6 +126,7 @@ class CastleGroundsModel extends Equatable {
       nextLevel: nextLevel ?? this.nextLevel,
       castleImage: castleImage ?? this.castleImage,
       placedItems: placedItems ?? this.placedItems,
+      inventory: inventory ?? this.inventory,
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }
@@ -127,6 +144,7 @@ class CastleGroundsModel extends Equatable {
     nextLevel,
     castleImage,
     placedItems,
+    inventory,
     updatedAt,
   ];
 }
