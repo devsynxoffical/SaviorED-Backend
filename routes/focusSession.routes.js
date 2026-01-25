@@ -191,27 +191,9 @@ router.put('/:id/complete', protect, async (req, res) => {
       await castle.save();
     }
 
-    // Update treasure chest progress using actual minutes
-    const chest = await TreasureChest.findOne({ userId: req.user._id })
-      .sort({ createdAt: -1 });
-
-    if (chest && !chest.isClaimed) {
-      // Goal is 60 minutes (as requested)
-      const addedProgress = (minutes / 60) * 100;
-      const newProgress = Math.min(chest.progressPercentage + addedProgress, 100);
-      chest.progressPercentage = newProgress;
-
-      if (newProgress >= 100 && !chest.isUnlocked) {
-        chest.isUnlocked = true;
-        chest.unlockedAt = new Date();
-        // Unlock rewards
-        chest.rewards.forEach(reward => {
-          reward.isUnlocked = true;
-          reward.unlockedAt = new Date();
-        });
-      }
-      await chest.save();
-    }
+    // NOTE: Treasure chest progress is now dynamically calculated in treasureChest.routes.js
+    // based on user.totalFocusHours and user.lastClaimedFocusMinutes.
+    // We NO LONGER manually update chest.progressPercentage here to avoid conflicts.
 
 
     res.json({
