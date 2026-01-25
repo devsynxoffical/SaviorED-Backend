@@ -55,19 +55,20 @@ router.get('/my-castle', protect, async (req, res) => {
 });
 
 // @route   PUT /api/castles/layout
+// @route   PUT /api/castles/update-layout
 // @desc    Update castle layout
 // @access  Private
-router.put('/layout', protect, async (req, res) => {
+router.put(['/layout', '/update-layout'], protect, async (req, res) => {
   try {
-    const { layout, items, level } = req.body;
+    const { layout, items, placed_items, level } = req.body;
 
     let castle = await Castle.findOne({ userId: req.user._id });
     if (!castle) {
       return res.status(404).json({ success: false, message: 'Castle not found' });
     }
 
-    // Support both 'layout' (from Flutter) and 'items' (legacy/other)
-    castle.layout = layout || items || [];
+    // Support all possible layout keys from different frontend versions
+    castle.layout = layout || placed_items || items || [];
     castle.markModified('layout');
 
     // Update level if provided
@@ -81,12 +82,63 @@ router.put('/layout', protect, async (req, res) => {
       castle: {
         id: castle._id,
         level: castle.level,
+        coins: castle.coins,
+        stones: castle.stones,
+        wood: castle.wood,
         layout: castle.layout,
       }
     });
   } catch (error) {
     console.error('Layout update error:', error);
     res.status(500).json({ success: false, message: 'Server error updating layout' });
+  }
+});
+
+// @route   POST /api/castles/spend-resources
+// @desc    Spend coins, wood, or stone
+// @access  Private
+router.post('/spend-resources', protect, async (req, res) => {
+  try {
+    const { coins, wood, stone } = req.body;
+
+    let castle = await Castle.findOne({ userId: req.user._id });
+    if (!castle) {
+      return res.status(404).json({ success: false, message: 'Castle not found' });
+    }
+
+    // Validation
+    const spendCoins = parseInt(coins) || 0;
+    const spendWood = parseInt(wood) || 0;
+    const spendStones = parseInt(stone) || 0;
+
+    if (castle.coins < spendCoins || castle.wood < spendWood || castle.stones < spendStones) {
+      return res.status(400).json({
+        success: false,
+        message: 'Insufficient resources',
+        current: { coins: castle.coins, wood: castle.wood, stones: castle.stones }
+      });
+    }
+
+    // Deduct
+    castle.coins -= spendCoins;
+    castle.wood -= spendWood;
+    castle.stones -= spendStones;
+
+    await castle.save();
+
+    res.json({
+      success: true,
+      message: 'Resources spent successfully',
+      castle: {
+        coins: castle.coins,
+        wood: castle.wood,
+        stones: castle.stones,
+        level: castle.level
+      }
+    });
+  } catch (error) {
+    console.error('Spend resources error:', error);
+    res.status(500).json({ success: false, message: 'Server error processing transaction' });
   }
 });
 
